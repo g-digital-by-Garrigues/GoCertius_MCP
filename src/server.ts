@@ -13,13 +13,21 @@ import { dossier_list } from "./tools/dossier_list.js";
 import { dossier_get } from "./tools/dossier_get.js";
 import { dossier_template_list } from "./tools/dossier_template_list.js";
 import { notification_request_create } from "./tools/notification_request_create.js";
+import { notification_request_send } from "./tools/notification_request_send.js";
 import { notification_request_status } from "./tools/notification_request_status.js";
 import { notification_receiver_add } from "./tools/notification_receiver_add.js";
 import { notification_certificate_get } from "./tools/notification_certificate_get.js";
+import { case_file_create } from "./tools/case_file_create.js";
 import { case_file_list } from "./tools/case_file_list.js";
 import { case_file_get } from "./tools/case_file_get.js";
 import { chat_create } from "./tools/chat_create.js";
+import { chat_get } from "./tools/chat_get.js";
+import { chat_invitation_url } from "./tools/chat_invitation_url.js";
+import { chat_certificate_create } from "./tools/chat_certificate_create.js";
 import { chat_certificate_get } from "./tools/chat_certificate_get.js";
+import { dossier_certify } from "./tools/dossier_certify.js";
+import { dossier_group_certify } from "./tools/dossier_group_certify.js";
+import { dossier_evidence_link } from "./tools/dossier_evidence_link.js";
 import { session_login } from "./tools/session_login.js";
 import { session_info } from "./tools/session_info.js";
 
@@ -38,13 +46,21 @@ dossier_list,
 dossier_get,
 dossier_template_list,
 notification_request_create,
+notification_request_send,
 notification_request_status,
 notification_receiver_add,
 notification_certificate_get,
+case_file_create,
 case_file_list,
 case_file_get,
 chat_create,
+chat_get,
+chat_invitation_url,
+chat_certificate_create,
 chat_certificate_get,
+dossier_certify,
+dossier_group_certify,
+dossier_evidence_link,
 session_login,
 session_info,
   ],

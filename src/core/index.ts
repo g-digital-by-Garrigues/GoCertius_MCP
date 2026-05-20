@@ -21,12 +21,29 @@ export { DEFAULT_WINDOW_SECONDS, IdempotencyCache, idempotencyCache } from "./id
 export type { LogContext } from "./logger.js";
 // Logging
 export { createLogger, Logger, logger } from "./logger.js";
+export type { SpanContext, ToolMetrics } from "./observability.js";
+// Observability (E9)
+export { metrics, withMetrics } from "./observability.js";
 export type { ServerConfig } from "./server.js";
 // Server wiring
 export { createServer } from "./server.js";
 export type { TaskState, TaskStatus } from "./tasks/index.js";
 // Tasks
 export { generateTaskId, InMemoryTaskStore, taskStore } from "./tasks/index.js";
+export type {
+  BridgedTask,
+  SseEvent,
+  TaskEventFilter,
+  TerminalMatcher,
+} from "./tasks/sse-bridge.js";
+// SSE Bridge (E7)
+export {
+  evidenceSealFilter,
+  evidenceSealTerminal,
+  notificationFilter,
+  notificationTerminal,
+  SseBridge,
+} from "./tasks/sse-bridge.js";
 export type { ToolAnnotations, ToolContext, ToolResult, ToolSpec } from "./tools/index.js";
 // Tool authoring
 export { defineTool, globalRegistry, ToolRegistry } from "./tools/index.js";

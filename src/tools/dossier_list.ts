@@ -3,10 +3,13 @@
 
 import { defineTool } from "../core/index.js";
 import { z } from "zod";
-
+import { createClient, createConfig } from "../api/client/index.js";
+import { listDossiersControllerRun } from "../api/sdk.gen.js";
+import { zListDossiersControllerRunPath } from "../api/zod.gen.js";
+import { zListDossiersControllerRunQuery } from "../api/zod.gen.js";
 const inputSchema = z.object({
-  // TODO: replace with generated schema import from ../api/schemas.js
-  // This stub is replaced by the agent-assistance layer (E5/E6) with field-level descriptions.
+  ...zListDossiersControllerRunPath.shape,
+  ...zListDossiersControllerRunQuery.shape,
 });
 
 export const dossier_list = defineTool({
@@ -20,8 +23,31 @@ export const dossier_list = defineTool({
   },
   pollable: false,
   idempotencyWindowSeconds: 60,
-  async execute(_input, _ctx) {
-    // TODO: wire Hey-API generated SDK call here (E5/E6)
-    throw new Error("Not implemented — wire in E5/E6 emit phase.");
+  async execute(input, ctx) {
+    const token = ctx.auth?.token ?? "";
+    const sdkClient = createClient(
+      createConfig({
+        baseUrl: process.env.MCP_API_BASE_URL ?? "",
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    );
+
+    // biome-ignore lint/suspicious/noExplicitAny: generated SDK call — input shape validated above
+    const inp = input as any;
+    // biome-ignore lint/suspicious/noExplicitAny: generated SDK function — types validated at generation time
+    const sdkFn = listDossiersControllerRun as (opts: any) => Promise<any>;
+    const response = await sdkFn({
+      client: sdkClient,
+      path: zListDossiersControllerRunPath.parse(inp),
+      query: zListDossiersControllerRunQuery.parse(inp),
+    });
+
+    if (response.error !== undefined) {
+      const msg = typeof response.error === "object" && response.error !== null && "message" in response.error
+        ? String(response.error.message)
+        : JSON.stringify(response.error);
+      throw new Error(msg);
+    }
+    return response.data;
   },
 });

@@ -17,6 +17,36 @@ export interface ToolAnnotations {
   requiresUserConfirmation?: boolean;
 }
 
+/** Minimal form-based elicitation params (avoids SDK import in tool files) */
+export interface ElicitFormParams {
+  mode?: "form";
+  message: string;
+  requestedSchema: {
+    type: "object";
+    properties: Record<
+      string,
+      | { type: "boolean"; title?: string; description?: string; default?: boolean }
+      | { type: "string"; title?: string; description?: string; default?: string }
+      | { type: "number" | "integer"; title?: string; description?: string; default?: number }
+    >;
+    required?: string[];
+  };
+}
+
+/** URL-based elicitation params */
+export interface ElicitUrlParams {
+  mode: "url";
+  message: string;
+  elicitationId: string;
+  url: string;
+}
+
+/** Result from elicitInput — action = "accept" means user submitted */
+export interface ElicitResponse {
+  action: "accept" | "decline" | "cancel";
+  content?: Record<string, string | number | boolean | string[]>;
+}
+
 export interface ToolContext {
   /** Pre-computed idempotency key for this call */
   getIdempotencyKey(): string;
@@ -26,6 +56,11 @@ export interface ToolContext {
   inferRemediation(err: unknown, hints: Record<string, string>): string;
   /** Auth context (token for upstream API calls) — null if no credentials configured */
   auth: AuthContext | null;
+  /**
+   * MCP elicitation — prompts the user via the client UI and waits for input.
+   * Undefined when the client does not support elicitation.
+   */
+  elicitInput?: (params: ElicitFormParams | ElicitUrlParams) => Promise<ElicitResponse>;
 }
 
 export type ToolResult = unknown | McpErrorContent;

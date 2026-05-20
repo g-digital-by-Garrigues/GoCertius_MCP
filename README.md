@@ -42,7 +42,7 @@ Add to your `~/.claude.json` or `claude_desktop_config.json`:
 For credential setup instructions, visit: https://www.gocertius.io
 ## Available Tools
 
-This server exposes 20 tools:
+This server exposes 28 tools:
 
 - **`evidence_create`** — Performs the evidence_create operation against the GoCertius API.
 - **`evidence_list`** — Performs the evidence_list operation against the GoCertius API.
@@ -55,13 +55,21 @@ This server exposes 20 tools:
 - **`dossier_get`** — Performs the dossier_get operation against the GoCertius API.
 - **`dossier_template_list`** — Performs the dossier_template_list operation against the GoCertius API.
 - **`notification_request_create`** — Performs the notification_request_create operation against the GoCertius API.
+- **`notification_request_send`** — Performs the notification_request_send operation against the GoCertius API.
 - **`notification_request_status`** — Performs the notification_request_status operation against the GoCertius API.
 - **`notification_receiver_add`** — Performs the notification_receiver_add operation against the GoCertius API.
 - **`notification_certificate_get`** — Performs the notification_certificate_get operation against the GoCertius API.
+- **`case_file_create`** — Performs the case_file_create operation against the GoCertius API.
 - **`case_file_list`** — Performs the case_file_list operation against the GoCertius API.
 - **`case_file_get`** — Performs the case_file_get operation against the GoCertius API.
 - **`chat_create`** — Performs the chat_create operation against the GoCertius API.
+- **`chat_get`** — Performs the chat_get operation against the GoCertius API.
+- **`chat_invitation_url`** — Performs the chat_invitation_url operation against the GoCertius API.
+- **`chat_certificate_create`** — Performs the chat_certificate_create operation against the GoCertius API.
 - **`chat_certificate_get`** — Performs the chat_certificate_get operation against the GoCertius API.
+- **`dossier_certify`** — Performs the dossier_certify operation against the GoCertius API.
+- **`dossier_group_certify`** — Performs the dossier_group_certify operation against the GoCertius API.
+- **`dossier_evidence_link`** — Performs the dossier_evidence_link operation against the GoCertius API.
 - **`session_login`** — Performs the session_login operation against the GoCertius API.
 - **`session_info`** — Performs the session_info operation against the GoCertius API.
 

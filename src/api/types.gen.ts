@@ -193,6 +193,7 @@ export type CreateCaseFilesSharingControllerRunResponses = {
 export type DeleteCaseFilesSharingControllerRunData = {
     body?: never;
     path: {
+        caseFileId: string;
         id: string;
     };
     query?: never;
@@ -210,6 +211,7 @@ export type UpdateCaseFilesSharingControllerRunData = {
         role?: 'COLLABORATOR' | 'EDITOR' | 'MANAGER';
     };
     path: {
+        caseFileId: string;
         id: string;
     };
     query?: never;
@@ -403,6 +405,7 @@ export type CertifyChatCertificateControllerRunResponses = {
 export type ListChatCertificatesControllerRunData = {
     body?: never;
     path: {
+        caseFileId: string;
         chatId: string;
     };
     query?: {
@@ -504,6 +507,7 @@ export type CreateChatCertificateExpressControllerRunResponses = {
 export type DeleteChatCertificateControllerRunData = {
     body?: never;
     path: {
+        caseFileId: string;
         chatId: string;
         chatCertificateId: string;
     };
@@ -543,7 +547,9 @@ export type UpdateChatCertificateControllerRunResponse = UpdateChatCertificateCo
 
 export type ListChatCertificateModelsControllerRunData = {
     body?: never;
-    path?: never;
+    path: {
+        userId: string;
+    };
     query?: {
         page?: {
             number: number;
@@ -578,6 +584,8 @@ export type ListChatCertificateModelsControllerRunResponse = ListChatCertificate
 export type ListChatCertificateRecallRequestsControllerIndexData = {
     body?: never;
     path: {
+        chatId: string;
+        caseFileId: string;
         chatCertificateId: string;
     };
     query?: {
@@ -635,6 +643,7 @@ export type NotifyChatCertificateControllerRunResponses = {
 export type ShowChatCertificateControllerRunData = {
     body?: never;
     path: {
+        caseFileId: string;
         chatId: string;
         id: string;
     };
@@ -676,6 +685,7 @@ export type ShowChatCertificateControllerRunResponse = ShowChatCertificateContro
 export type ShowChatCertificateDocumentUrlControllerRunData = {
     body?: never;
     path: {
+        caseFileId: string;
         chatId: string;
         chatCertificateId: string;
     };
@@ -694,6 +704,7 @@ export type ShowChatCertificateDocumentUrlControllerRunResponse = ShowChatCertif
 export type ShowChatCertificatePackageUrlControllerRunData = {
     body?: never;
     path: {
+        caseFileId: string;
         chatId: string;
         chatCertificateId: string;
     };
@@ -733,6 +744,7 @@ export type UpdateChatCertificateVisibilityControllerRunData = {
         visibility: 'ACCESSIBLE' | 'PENDING_RECALL' | 'RECALLED';
     };
     path: {
+        caseFileId: string;
         chatId: string;
         chatCertificateId: string;
     };
@@ -1164,6 +1176,7 @@ export type ShowChatMessageControllerRunResponse = ShowChatMessageControllerRunR
 export type CertifyDossierControllerRunData = {
     body?: never;
     path: {
+        caseFileId: string;
         dossierId: string;
     };
     query?: never;
@@ -1289,6 +1302,7 @@ export type CreateDossierExpressControllerRunResponses = {
 export type DeleteDossierControllerRunData = {
     body?: never;
     path: {
+        caseFileId: string;
         dossierId: string;
     };
     query?: never;
@@ -1304,6 +1318,7 @@ export type DeleteDossierControllerRunResponse = DeleteDossierControllerRunRespo
 export type ShowDossierControllerRunData = {
     body?: never;
     path: {
+        caseFileId: string;
         dossierId: string;
     };
     query?: never;
@@ -1376,6 +1391,7 @@ export type UpdateDossierControllerRunData = {
         accessToken?: string;
     };
     path: {
+        caseFileId: string;
         dossierId: string;
     };
     query?: never;
@@ -1388,9 +1404,222 @@ export type UpdateDossierControllerRunResponses = {
 
 export type UpdateDossierControllerRunResponse = UpdateDossierControllerRunResponses[keyof UpdateDossierControllerRunResponses];
 
+export type DeleteDossierEvidenceControllerRunData = {
+    body?: never;
+    path: {
+        dossierEvidenceGroupId: string;
+        dossierId: string;
+        caseFileId: string;
+        dossierEvidenceId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/dossiers/{dossierId}/evidence-groups/{dossierEvidenceGroupId}/evidences/{dossierEvidenceId}';
+};
+
+export type DeleteDossierEvidenceControllerRunResponses = {
+    204: void;
+};
+
+export type DeleteDossierEvidenceControllerRunResponse = DeleteDossierEvidenceControllerRunResponses[keyof DeleteDossierEvidenceControllerRunResponses];
+
+export type ShowDossierEvidenceControllerRunData = {
+    body?: never;
+    path: {
+        dossierEvidenceGroupId: string;
+        dossierId: string;
+        caseFileId: string;
+        dossierEvidenceId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/dossiers/{dossierId}/evidence-groups/{dossierEvidenceGroupId}/evidences/{dossierEvidenceId}';
+};
+
+export type ShowDossierEvidenceControllerRunResponses = {
+    200: {
+        id: string;
+        title: string;
+        fileSize?: number;
+        fileName?: string;
+        type: string;
+        capturedAt: string;
+        dossierEvidenceGroupId: string;
+        evidenceId: string;
+        evidenceGroupId: string;
+        hash: string;
+        tspTimestamp?: {
+            provider: string;
+            token: string;
+            date: string;
+        };
+        tspTimestamps: Array<{
+            provider: string;
+            token: string;
+            date: string;
+        }>;
+        dltTimestamp?: {
+            provider: string;
+            blockExplorerLink: string;
+            date: string;
+        };
+        dltTimestamps: Array<{
+            provider: string;
+            blockExplorerLink: string;
+            date: string;
+        }>;
+        custodyType: string;
+    };
+};
+
+export type ShowDossierEvidenceControllerRunResponse = ShowDossierEvidenceControllerRunResponses[keyof ShowDossierEvidenceControllerRunResponses];
+
+export type UpdateDossierEvidenceControllerRunData = {
+    body: {
+        title?: string;
+    };
+    path: {
+        dossierEvidenceGroupId: string;
+        dossierId: string;
+        caseFileId: string;
+        dossierEvidenceId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/dossiers/{dossierId}/evidence-groups/{dossierEvidenceGroupId}/evidences/{dossierEvidenceId}';
+};
+
+export type UpdateDossierEvidenceControllerRunResponses = {
+    204: void;
+};
+
+export type UpdateDossierEvidenceControllerRunResponse = UpdateDossierEvidenceControllerRunResponses[keyof UpdateDossierEvidenceControllerRunResponses];
+
+export type LinkDossierEvidencesControllerRunData = {
+    body: {
+        ids: Array<string>;
+    };
+    path: {
+        caseFileId: string;
+        dossierId: string;
+        caseFileToLinkId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/dossiers/{dossierId}/case-files-to-link/{caseFileToLinkId}/link-evidences';
+};
+
+export type LinkDossierEvidencesControllerRunResponses = {
+    201: unknown;
+};
+
+export type ListDossierEvidencesControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        dossierId: string;
+        dossierEvidenceGroupId: string;
+    };
+    query?: {
+        filter?: {
+            evidenceIds?: Array<string>;
+            dossierId?: string;
+            dossierEvidenceGroupId?: string;
+            capturedFrom?: string;
+            capturedUntil?: string;
+            title?: string;
+            id?: string;
+        };
+        order?: {
+            capturedAt?: 'ASC' | 'DESC';
+            createdAt?: 'ASC' | 'DESC';
+        };
+        page?: {
+            number: number;
+            size: number;
+        };
+    };
+    url: '/case-files/{caseFileId}/dossiers/{dossierId}/evidence-groups/{dossierEvidenceGroupId}/evidences';
+};
+
+export type ListDossierEvidencesControllerRunResponses = {
+    200: {
+        data?: Array<{
+            id: string;
+            title: string;
+            fileSize?: number;
+            fileName?: string;
+            type: string;
+            capturedAt: string;
+            custodyType: string;
+            dossierEvidenceGroupId: string;
+        }>;
+        meta?: {
+            totalElements?: number;
+        };
+    };
+};
+
+export type ListDossierEvidencesControllerRunResponse = ListDossierEvidencesControllerRunResponses[keyof ListDossierEvidencesControllerRunResponses];
+
+export type ListDossierEvidencesToLinkControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        dossierId: string;
+        caseFileToLinkId: string;
+    };
+    query?: {
+        filter?: {
+            title?: string;
+            caseFileId?: string;
+            ids?: Array<string>;
+            evidenceGroupIds?: Array<string>;
+            capturedFrom?: string;
+            capturedUntil?: string;
+            relevant?: boolean;
+            id?: string;
+        };
+        order?: {
+            capturedAt?: 'ASC' | 'DESC';
+            evidenceGroupName?: 'ASC' | 'DESC';
+            createdAt?: 'ASC' | 'DESC';
+        };
+        page?: {
+            number: number;
+            size: number;
+        };
+    };
+    url: '/case-files/{caseFileId}/dossiers/{dossierId}/case-files-to-link/{caseFileToLinkId}/evidences-to-link';
+};
+
+export type ListDossierEvidencesToLinkControllerRunResponses = {
+    200: {
+        data?: Array<{
+            id: string;
+            title?: string;
+            fileSize?: number;
+            fileName: string;
+            capturedAt: string;
+            relevant: boolean;
+            custodyType: string;
+            evidenceGroup: {
+                id: string;
+                code: string;
+                name: string;
+                type: 'FILE' | 'PHOTO' | 'VIDEO' | 'WEB_PLUGIN';
+                caseFileId: string;
+            };
+            linked: boolean;
+        }>;
+        meta?: {
+            totalElements?: number;
+        };
+    };
+};
+
+export type ListDossierEvidencesToLinkControllerRunResponse = ListDossierEvidencesToLinkControllerRunResponses[keyof ListDossierEvidencesToLinkControllerRunResponses];
+
 export type ListDossierRecallRequestsControllerRunData = {
     body?: never;
     path: {
+        caseFileId: string;
         dossierId: string;
     };
     query?: {
@@ -1433,6 +1662,7 @@ export type ListDossierRecallRequestsControllerRunResponse = ListDossierRecallRe
 export type ShowDossierDocumentUrlControllerRunData = {
     body?: never;
     path: {
+        caseFileId: string;
         dossierId: string;
     };
     query?: never;
@@ -1447,9 +1677,51 @@ export type ShowDossierDocumentUrlControllerRunResponses = {
 
 export type ShowDossierDocumentUrlControllerRunResponse = ShowDossierDocumentUrlControllerRunResponses[keyof ShowDossierDocumentUrlControllerRunResponses];
 
+export type ShowDossierEvidenceDownloadUrlControllerRunData = {
+    body?: never;
+    path: {
+        dossierEvidenceGroupId: string;
+        dossierId: string;
+        caseFileId: string;
+        dossierEvidenceId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/dossiers/{dossierId}/evidence-groups/{dossierEvidenceGroupId}/evidences/{dossierEvidenceId}/download-url';
+};
+
+export type ShowDossierEvidenceDownloadUrlControllerRunResponses = {
+    200: {
+        downloadFileUrl: string;
+    };
+};
+
+export type ShowDossierEvidenceDownloadUrlControllerRunResponse = ShowDossierEvidenceDownloadUrlControllerRunResponses[keyof ShowDossierEvidenceDownloadUrlControllerRunResponses];
+
+export type ShowDossierEvidenceThumbnailControllerRunData = {
+    body?: never;
+    path: {
+        dossierEvidenceGroupId: string;
+        dossierId: string;
+        caseFileId: string;
+        dossierEvidenceId: string;
+        size: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/dossiers/{dossierId}/evidence-groups/{dossierEvidenceGroupId}/evidences/{dossierEvidenceId}/thumbnail/{size}';
+};
+
+export type ShowDossierEvidenceThumbnailControllerRunResponses = {
+    200: {
+        url: string;
+    };
+};
+
+export type ShowDossierEvidenceThumbnailControllerRunResponse = ShowDossierEvidenceThumbnailControllerRunResponses[keyof ShowDossierEvidenceThumbnailControllerRunResponses];
+
 export type ShowDossierPackageUrlControllerRunData = {
     body?: never;
     path: {
+        caseFileId: string;
         dossierId: string;
     };
     query?: never;
@@ -1467,6 +1739,7 @@ export type ShowDossierPackageUrlControllerRunResponse = ShowDossierPackageUrlCo
 export type ShowDossierPreviewControllerRunData = {
     body?: never;
     path: {
+        caseFileId: string;
         dossierId: string;
     };
     query?: never;
@@ -1506,6 +1779,7 @@ export type UpdateDossierVisibilityControllerRunData = {
         visibility: 'ACCESSIBLE' | 'PENDING_RECALL' | 'RECALLED';
     };
     path: {
+        caseFileId: string;
         dossierId: string;
     };
     query?: never;
@@ -1710,6 +1984,8 @@ export type UpdateEvidenceControllerRunData = {
         relevant?: boolean;
     };
     path: {
+        evidenceGroupId: string;
+        caseFileId: string;
         id: string;
     };
     query?: never;
@@ -2143,6 +2419,8 @@ export type UpdateFavoriteEvidenceControllerRunData = {
         favorite: boolean;
     };
     path: {
+        evidenceGroupId: string;
+        caseFileId: string;
         id: string;
     };
     query?: never;
@@ -2181,6 +2459,7 @@ export type UploadUrlEvidenceControllerRunResponse = UploadUrlEvidenceController
 export type ListNotificationCertificatesControllerRunData = {
     body?: never;
     path: {
+        caseFileId: string;
         notificationRequestId: string;
         receiverId: string;
     };
@@ -2323,6 +2602,7 @@ export type CreateMassiveNotificationReceiversControllerRunData = {
         }>;
     };
     path: {
+        caseFileId: string;
         notificationRequestId: string;
     };
     query?: never;
@@ -2336,6 +2616,7 @@ export type CreateMassiveNotificationReceiversControllerRunResponses = {
 export type ListNotificationReceiversControllerRunData = {
     body?: never;
     path: {
+        caseFileId: string;
         notificationRequestId: string;
     };
     query?: {
@@ -2393,6 +2674,7 @@ export type CreateNotificationReceiverControllerRunData = {
         sendWaUrl?: boolean;
     };
     path: {
+        caseFileId: string;
         notificationRequestId: string;
     };
     query?: never;

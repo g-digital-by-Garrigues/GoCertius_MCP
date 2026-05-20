@@ -96,6 +96,7 @@ export const zCreateCaseFilesSharingControllerRunPath = z.object({
 });
 
 export const zDeleteCaseFilesSharingControllerRunPath = z.object({
+    caseFileId: z.string(),
     id: z.string()
 });
 
@@ -110,6 +111,7 @@ export const zUpdateCaseFilesSharingControllerRunBody = z.object({
 });
 
 export const zUpdateCaseFilesSharingControllerRunPath = z.object({
+    caseFileId: z.string(),
     id: z.string()
 });
 
@@ -246,6 +248,7 @@ export const zCertifyChatCertificateControllerRunPath = z.object({
 });
 
 export const zListChatCertificatesControllerRunPath = z.object({
+    caseFileId: z.string(),
     chatId: z.string()
 });
 
@@ -342,6 +345,7 @@ export const zCreateChatCertificateExpressControllerRunPath = z.object({
 });
 
 export const zDeleteChatCertificateControllerRunPath = z.object({
+    caseFileId: z.string(),
     chatId: z.string(),
     chatCertificateId: z.string()
 });
@@ -364,6 +368,10 @@ export const zUpdateChatCertificateControllerRunPath = z.object({
 });
 
 export const zUpdateChatCertificateControllerRunResponse = z.void();
+
+export const zListChatCertificateModelsControllerRunPath = z.object({
+    userId: z.string()
+});
 
 export const zListChatCertificateModelsControllerRunQuery = z.object({
     page: z.object({
@@ -391,6 +399,8 @@ export const zListChatCertificateModelsControllerRunResponse = z.object({
 });
 
 export const zListChatCertificateRecallRequestsControllerIndexPath = z.object({
+    chatId: z.string(),
+    caseFileId: z.string(),
     chatCertificateId: z.string()
 });
 
@@ -432,6 +442,7 @@ export const zNotifyChatCertificateControllerRunPath = z.object({
 });
 
 export const zShowChatCertificateControllerRunPath = z.object({
+    caseFileId: z.string(),
     chatId: z.string(),
     id: z.string()
 });
@@ -472,6 +483,7 @@ export const zShowChatCertificateControllerRunResponse = z.object({
 });
 
 export const zShowChatCertificateDocumentUrlControllerRunPath = z.object({
+    caseFileId: z.string(),
     chatId: z.string(),
     chatCertificateId: z.string()
 });
@@ -481,6 +493,7 @@ export const zShowChatCertificateDocumentUrlControllerRunResponse = z.object({
 });
 
 export const zShowChatCertificatePackageUrlControllerRunPath = z.object({
+    caseFileId: z.string(),
     chatId: z.string(),
     chatCertificateId: z.string()
 });
@@ -508,6 +521,7 @@ export const zUpdateChatCertificateVisibilityControllerRunBody = z.object({
 });
 
 export const zUpdateChatCertificateVisibilityControllerRunPath = z.object({
+    caseFileId: z.string(),
     chatId: z.string(),
     chatCertificateId: z.string()
 });
@@ -986,6 +1000,7 @@ export const zShowChatMessageControllerRunResponse = z.object({
 });
 
 export const zCertifyDossierControllerRunPath = z.object({
+    caseFileId: z.string(),
     dossierId: z.string()
 });
 
@@ -1089,12 +1104,14 @@ export const zCreateDossierExpressControllerRunPath = z.object({
 });
 
 export const zDeleteDossierControllerRunPath = z.object({
+    caseFileId: z.string(),
     dossierId: z.string()
 });
 
 export const zDeleteDossierControllerRunResponse = z.void();
 
 export const zShowDossierControllerRunPath = z.object({
+    caseFileId: z.string(),
     dossierId: z.string()
 });
 
@@ -1145,12 +1162,185 @@ export const zUpdateDossierControllerRunBody = z.object({
 });
 
 export const zUpdateDossierControllerRunPath = z.object({
+    caseFileId: z.string(),
     dossierId: z.string()
 });
 
 export const zUpdateDossierControllerRunResponse = z.void();
 
+export const zDeleteDossierEvidenceControllerRunPath = z.object({
+    dossierEvidenceGroupId: z.string(),
+    dossierId: z.string(),
+    caseFileId: z.string(),
+    dossierEvidenceId: z.string()
+});
+
+export const zDeleteDossierEvidenceControllerRunResponse = z.void();
+
+export const zShowDossierEvidenceControllerRunPath = z.object({
+    dossierEvidenceGroupId: z.string(),
+    dossierId: z.string(),
+    caseFileId: z.string(),
+    dossierEvidenceId: z.string()
+});
+
+export const zShowDossierEvidenceControllerRunResponse = z.object({
+    id: z.string(),
+    title: z.string(),
+    fileSize: z.number().optional(),
+    fileName: z.string().optional(),
+    type: z.string(),
+    capturedAt: z.string(),
+    dossierEvidenceGroupId: z.string(),
+    evidenceId: z.string(),
+    evidenceGroupId: z.string(),
+    hash: z.string(),
+    tspTimestamp: z.object({
+        provider: z.string(),
+        token: z.string(),
+        date: z.string()
+    }).optional(),
+    tspTimestamps: z.array(z.object({
+        provider: z.string(),
+        token: z.string(),
+        date: z.string()
+    })),
+    dltTimestamp: z.object({
+        provider: z.string(),
+        blockExplorerLink: z.string(),
+        date: z.string()
+    }).optional(),
+    dltTimestamps: z.array(z.object({
+        provider: z.string(),
+        blockExplorerLink: z.string(),
+        date: z.string()
+    })),
+    custodyType: z.string()
+});
+
+export const zUpdateDossierEvidenceControllerRunBody = z.object({
+    title: z.string().optional()
+});
+
+export const zUpdateDossierEvidenceControllerRunPath = z.object({
+    dossierEvidenceGroupId: z.string(),
+    dossierId: z.string(),
+    caseFileId: z.string(),
+    dossierEvidenceId: z.string()
+});
+
+export const zUpdateDossierEvidenceControllerRunResponse = z.void();
+
+export const zLinkDossierEvidencesControllerRunBody = z.object({
+    ids: z.array(z.uuid())
+});
+
+export const zLinkDossierEvidencesControllerRunPath = z.object({
+    caseFileId: z.string(),
+    dossierId: z.string(),
+    caseFileToLinkId: z.string()
+});
+
+export const zListDossierEvidencesControllerRunPath = z.object({
+    caseFileId: z.string(),
+    dossierId: z.string(),
+    dossierEvidenceGroupId: z.string()
+});
+
+export const zListDossierEvidencesControllerRunQuery = z.object({
+    filter: z.object({
+        evidenceIds: z.array(z.uuid()).optional(),
+        dossierId: z.uuid().optional(),
+        dossierEvidenceGroupId: z.uuid().optional(),
+        capturedFrom: z.string().optional(),
+        capturedUntil: z.string().optional(),
+        title: z.string().optional(),
+        id: z.string().optional()
+    }).optional(),
+    order: z.object({
+        capturedAt: z.enum(['ASC', 'DESC']).optional(),
+        createdAt: z.enum(['ASC', 'DESC']).optional()
+    }).optional(),
+    page: z.object({
+        number: z.number().gte(1).default(1),
+        size: z.number().gte(0).lte(100).default(20)
+    }).optional()
+});
+
+export const zListDossierEvidencesControllerRunResponse = z.object({
+    data: z.array(z.object({
+        id: z.string(),
+        title: z.string(),
+        fileSize: z.number().optional(),
+        fileName: z.string().optional(),
+        type: z.string(),
+        capturedAt: z.string(),
+        custodyType: z.string(),
+        dossierEvidenceGroupId: z.string()
+    })).optional(),
+    meta: z.object({
+        totalElements: z.number().optional()
+    }).optional()
+});
+
+export const zListDossierEvidencesToLinkControllerRunPath = z.object({
+    caseFileId: z.string(),
+    dossierId: z.string(),
+    caseFileToLinkId: z.string()
+});
+
+export const zListDossierEvidencesToLinkControllerRunQuery = z.object({
+    filter: z.object({
+        title: z.string().optional(),
+        caseFileId: z.uuid().optional(),
+        ids: z.array(z.uuid()).optional(),
+        evidenceGroupIds: z.array(z.uuid()).optional(),
+        capturedFrom: z.iso.datetime().optional(),
+        capturedUntil: z.iso.datetime().optional(),
+        relevant: z.boolean().optional(),
+        id: z.string().optional()
+    }).optional(),
+    order: z.object({
+        capturedAt: z.enum(['ASC', 'DESC']).optional(),
+        evidenceGroupName: z.enum(['ASC', 'DESC']).optional(),
+        createdAt: z.enum(['ASC', 'DESC']).optional()
+    }).optional(),
+    page: z.object({
+        number: z.number().gte(1).default(1),
+        size: z.number().gte(0).lte(100).default(20)
+    }).optional()
+});
+
+export const zListDossierEvidencesToLinkControllerRunResponse = z.object({
+    data: z.array(z.object({
+        id: z.string(),
+        title: z.string().optional(),
+        fileSize: z.number().optional(),
+        fileName: z.string(),
+        capturedAt: z.string(),
+        relevant: z.boolean(),
+        custodyType: z.string(),
+        evidenceGroup: z.object({
+            id: z.string(),
+            code: z.string(),
+            name: z.string(),
+            type: z.enum([
+                'FILE',
+                'PHOTO',
+                'VIDEO',
+                'WEB_PLUGIN'
+            ]),
+            caseFileId: z.string()
+        }),
+        linked: z.boolean()
+    })).optional(),
+    meta: z.object({
+        totalElements: z.number().optional()
+    }).optional()
+});
+
 export const zListDossierRecallRequestsControllerRunPath = z.object({
+    caseFileId: z.string(),
     dossierId: z.string()
 });
 
@@ -1186,6 +1376,7 @@ export const zListDossierRecallRequestsControllerRunResponse = z.object({
 });
 
 export const zShowDossierDocumentUrlControllerRunPath = z.object({
+    caseFileId: z.string(),
     dossierId: z.string()
 });
 
@@ -1193,7 +1384,31 @@ export const zShowDossierDocumentUrlControllerRunResponse = z.object({
     documentUrl: z.string()
 });
 
+export const zShowDossierEvidenceDownloadUrlControllerRunPath = z.object({
+    dossierEvidenceGroupId: z.string(),
+    dossierId: z.string(),
+    caseFileId: z.string(),
+    dossierEvidenceId: z.string()
+});
+
+export const zShowDossierEvidenceDownloadUrlControllerRunResponse = z.object({
+    downloadFileUrl: z.string()
+});
+
+export const zShowDossierEvidenceThumbnailControllerRunPath = z.object({
+    dossierEvidenceGroupId: z.string(),
+    dossierId: z.string(),
+    caseFileId: z.string(),
+    dossierEvidenceId: z.string(),
+    size: z.string()
+});
+
+export const zShowDossierEvidenceThumbnailControllerRunResponse = z.object({
+    url: z.string()
+});
+
 export const zShowDossierPackageUrlControllerRunPath = z.object({
+    caseFileId: z.string(),
     dossierId: z.string()
 });
 
@@ -1202,6 +1417,7 @@ export const zShowDossierPackageUrlControllerRunResponse = z.object({
 });
 
 export const zShowDossierPreviewControllerRunPath = z.object({
+    caseFileId: z.string(),
     dossierId: z.string()
 });
 
@@ -1227,6 +1443,7 @@ export const zUpdateDossierVisibilityControllerRunBody = z.object({
 });
 
 export const zUpdateDossierVisibilityControllerRunPath = z.object({
+    caseFileId: z.string(),
     dossierId: z.string()
 });
 
@@ -1371,6 +1588,8 @@ export const zUpdateEvidenceControllerRunBody = z.object({
 });
 
 export const zUpdateEvidenceControllerRunPath = z.object({
+    evidenceGroupId: z.string(),
+    caseFileId: z.string(),
     id: z.string()
 });
 
@@ -1729,6 +1948,8 @@ export const zUpdateFavoriteEvidenceControllerRunBody = z.object({
 });
 
 export const zUpdateFavoriteEvidenceControllerRunPath = z.object({
+    evidenceGroupId: z.string(),
+    caseFileId: z.string(),
     id: z.string()
 });
 
@@ -1751,6 +1972,7 @@ export const zUploadUrlEvidenceControllerRunResponse = z.object({
 });
 
 export const zListNotificationCertificatesControllerRunPath = z.object({
+    caseFileId: z.string(),
     notificationRequestId: z.string(),
     receiverId: z.string()
 });
@@ -1849,10 +2071,12 @@ export const zCreateMassiveNotificationReceiversControllerRunBody = z.object({
 });
 
 export const zCreateMassiveNotificationReceiversControllerRunPath = z.object({
+    caseFileId: z.string(),
     notificationRequestId: z.string()
 });
 
 export const zListNotificationReceiversControllerRunPath = z.object({
+    caseFileId: z.string(),
     notificationRequestId: z.string()
 });
 
@@ -1916,6 +2140,7 @@ export const zCreateNotificationReceiverControllerRunBody = z.object({
 });
 
 export const zCreateNotificationReceiverControllerRunPath = z.object({
+    caseFileId: z.string(),
     notificationRequestId: z.string()
 });
 

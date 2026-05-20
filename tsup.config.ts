@@ -11,4 +11,8 @@ export default defineConfig({
   target: "node20",
   outDir: "dist",
   noExternal: [/.*/], // Bundle all deps for standalone distribution
+  // pino uses CJS dynamic require — shim it for ESM bundles
+  banner: {
+    js: 'import { createRequire } from "module"; const require = createRequire(import.meta.url);',
+  },
 });

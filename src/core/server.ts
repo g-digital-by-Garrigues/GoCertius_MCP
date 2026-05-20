@@ -13,6 +13,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ZodRawShape } from "zod";
 import { z } from "zod";
 import { AuthConfigError, detectAuthAdapter } from "./auth/detect.js";
+import { deviceFlowStore } from "./auth/device-flow.js";
 import type { AuthSession } from "./auth/session.js";
 import { createAuthSession } from "./auth/session.js";
 import {
@@ -37,6 +38,14 @@ export interface ServerConfig {
 export async function createServer(config: ServerConfig): Promise<void> {
   const log = createLogger();
   const idempotency = new IdempotencyCache();
+
+  // MCP_AUTH_JWT: pre-seed the device flow store with a known JWT (e.g. extracted from browser).
+  // This bypasses the full auth flow — the JWT is used directly for all tool calls.
+  const preseededJwt = process.env.MCP_AUTH_JWT;
+  if (preseededJwt) {
+    deviceFlowStore.set(preseededJwt, Date.now() + 8 * 3_600_000); // 8 h validity assumption
+    log.info("MCP_AUTH_JWT provided — pre-seeding auth session.");
+  }
 
   // Auth: lazy — null if no credentials configured (FR-E-013)
   let authSession: AuthSession | null = null;
@@ -74,9 +83,9 @@ export async function createServer(config: ServerConfig): Promise<void> {
       const cached = idempotency.get(tool.name, idempKey);
       if (cached) return cached as ReturnType<typeof buildMcpResult>;
 
-      // 3. Auth (lazy)
+      // 3. Auth (lazy) — skipped for session_login so it can bootstrap device flow
       let auth = null;
-      if (authSession) {
+      if (authSession && tool.name !== "session_login") {
         try {
           const token = await authSession.getToken();
           auth = { token, expiresAt: Date.now() + 3600_000 };
@@ -97,6 +106,10 @@ export async function createServer(config: ServerConfig): Promise<void> {
         },
         inferRemediation: (err, hints) => inferRemediation(err, hints),
         auth,
+        // Wire elicitation through the underlying Server instance
+        // biome-ignore lint/suspicious/noExplicitAny: SDK ElicitRequestParams ↔ our subset types; content optionality differs under exactOptionalPropertyTypes
+        elicitInput: async (params) =>
+          (await mcpServer.server.elicitInput(params as any)) as any,
       };
 
       // 5. Execute
@@ -143,7 +156,7 @@ export async function createServer(config: ServerConfig): Promise<void> {
   );
 
   if (transport instanceof HonoTransport) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny: StreamableHTTPServerTransport implements Transport but exactOptionalPropertyTypes causes mismatch
     await mcpServer.connect(transport.sdkTransport as any);
     await transport.start();
   } else {

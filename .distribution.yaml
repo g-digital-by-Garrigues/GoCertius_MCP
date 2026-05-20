@@ -27,9 +27,10 @@ git_tag_prefix: "v"
 # Bundled Claude Code skills
 bundled_skills:
   - evidence-lifecycle.md
+  - dossier-lifecycle.md
   - notification-lifecycle.md
   - chat-lifecycle.md
-# Static tool inventory (20 tools — must equal toolsAllowList.length)
+# Static tool inventory (28 tools — must equal toolsAllowList.length)
 tools:
   - name: evidence_create
     description: "Performs the evidence_create operation against the GoCertius API."
@@ -53,20 +54,36 @@ tools:
     description: "Performs the dossier_template_list operation against the GoCertius API."
   - name: notification_request_create
     description: "Performs the notification_request_create operation against the GoCertius API."
+  - name: notification_request_send
+    description: "Performs the notification_request_send operation against the GoCertius API."
   - name: notification_request_status
     description: "Performs the notification_request_status operation against the GoCertius API."
   - name: notification_receiver_add
     description: "Performs the notification_receiver_add operation against the GoCertius API."
   - name: notification_certificate_get
     description: "Performs the notification_certificate_get operation against the GoCertius API."
+  - name: case_file_create
+    description: "Performs the case_file_create operation against the GoCertius API."
   - name: case_file_list
     description: "Performs the case_file_list operation against the GoCertius API."
   - name: case_file_get
     description: "Performs the case_file_get operation against the GoCertius API."
   - name: chat_create
     description: "Performs the chat_create operation against the GoCertius API."
+  - name: chat_get
+    description: "Performs the chat_get operation against the GoCertius API."
+  - name: chat_invitation_url
+    description: "Performs the chat_invitation_url operation against the GoCertius API."
+  - name: chat_certificate_create
+    description: "Performs the chat_certificate_create operation against the GoCertius API."
   - name: chat_certificate_get
     description: "Performs the chat_certificate_get operation against the GoCertius API."
+  - name: dossier_certify
+    description: "Performs the dossier_certify operation against the GoCertius API."
+  - name: dossier_group_certify
+    description: "Performs the dossier_group_certify operation against the GoCertius API."
+  - name: dossier_evidence_link
+    description: "Performs the dossier_evidence_link operation against the GoCertius API."
   - name: session_login
     description: "Performs the session_login operation against the GoCertius API."
   - name: session_info

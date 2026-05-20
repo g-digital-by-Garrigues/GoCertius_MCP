@@ -1,30 +1,87 @@
 # Evidence Lifecycle
 
-Create and manage certified evidence chains in GoCertius.
+Create and certify evidence in GoCertius. Evidence is always grouped: you create a group, add N evidences to it, then seal the group. Sealing is mandatory — an unsealed group stays in "capturing" state and is never certified.
 
-## Parameters
+## Hierarchy
 
-- `case_file_id` (required): UUID of the case file to attach evidence to
-- `evidence_group_name` (optional): Name for the evidence group; defaults to "Evidence Group"
-- `file_path` (optional): Local path to the file to upload as evidence
-- `title` (required): Human-readable title for the evidence item
+```
+Case File
+  └─ Evidence Group  (container; sealed once = certified)
+       └─ Evidence   (one file per evidence item)
+```
+
+## Required inputs
+
+- `case_file_id` — UUID of the target case file (call `session_info` → `case_file_list` if unknown)
+- `use_case_id` — UUID of the use case; reuse the one from an existing case file in the same account
+- One or more files to certify: for each file you need its `fileName`, a human `title`, and the **SHA-256 hash** of the file content
 
 ## Flow
 
-1. **List or create a case file** — use `case_file_list` to find an existing one or create via the GoCertius web interface. Note the `case_file_id`.
+1. **Locate or create a case file**
+   - `session_info` → get `userId`
+   - `case_file_list` with `userId` to find an existing case file
+   - Or `case_file_create` if none exists (requires `id` UUID, `name`, `description`, `useCaseId`)
 
-2. **Create an evidence group** — call `evidence_group_create` with the case file ID. An evidence group is a container that can be sealed (certified) once all documents are uploaded.
+2. **Create an evidence group**
+   - `evidence_group_create` with a generated UUID `id`, `name`, `evidenceType: "FILE"`, and `caseFileId`
+   - Note the group UUID — needed for every evidence and the final seal
 
-3. **Create evidence** — call `evidence_create` with the group ID and file metadata. For large files, use `large_evidence_upload_initiate` first to get an upload URL, then upload the file via PUT, then confirm with `large_evidence_upload_complete`.
+3. **Add evidence items** (one call per file)
 
-4. **Verify** — call `evidence_get` to confirm the evidence was recorded correctly.
+   Choose custody type based on who stores the file:
 
-5. **Seal the group** — when all evidence is uploaded, call `evidence_seal` to close and certify the evidence group. This is a long-running operation (pollable). Monitor progress via the task ID returned.
+   **EXTERNAL** — you hold the file, GoCertius records the hash as proof of existence:
+   - `evidence_create` with `custodyType: "EXTERNAL"`, `id`, `title`, `fileName`, `hash` (SHA-256 hex, 64 chars), `evidenceGroupId`, `caseFileId`
+   - The API may return a network error even when the evidence was persisted — verify with `evidence_list` if in doubt
 
-6. **Check seal result** — use `evidence_group_list` to confirm the group status is `sealed`.
+   **INTERNAL** — GoCertius stores the file in S3, allowing the platform to verify the hash directly:
+   - `evidence_create` with `custodyType: "INTERNAL"`, same fields plus `hash`
+   - Response contains `{ uploadFileUrl, expiration }` — a pre-signed S3 URL (valid ~10 min)
+   - Upload the file: `PUT <uploadFileUrl>` with headers:
+     - `Content-Type: <mime-type>`
+     - `x-amz-checksum-sha256: <sha256-base64>` (SHA-256 of the file content, **base64-encoded**, not hex)
+   - A 200 from S3 confirms the upload; GoCertius processes it asynchronously
+   - Computing the base64 checksum: `openssl dgst -sha256 -binary <file> | base64`
 
-## Example
+   Repeat for each file in the group.
 
-"Upload the contract PDF as certified evidence for case file abc-123 and seal it."
+4. **Seal the group** — **mandatory step**
+   - `evidence_seal` with the group UUID as `id`, `caseFileId`, and `evidencesCount` = exact number of evidences added
+   - The group transitions from `OPEN` → `CLOSED`; evidences show `status: "COMPLETED"`
 
-Tool sequence: `case_file_get` → `evidence_group_create` → `evidence_create` → `evidence_seal`
+5. **Verify**
+   - `evidence_group_list` with `caseFileId` — confirm group `status: "CLOSED"` and `evidenceStats.completed` equals the expected count
+
+## Computing SHA-256
+
+```bash
+# macOS / Linux
+shasum -a 256 myfile.pdf | awk '{print $1}'
+
+# Node.js
+import { createHash } from "crypto";
+import { readFileSync } from "fs";
+const hash = createHash("sha256").update(readFileSync("myfile.pdf")).digest("hex");
+```
+
+## Example — two files in one group
+
+"Certify test.json and logo.png as evidence for case file 2d46d915-..."
+
+```
+evidence_group_create  id=<uuid-group>  name="Documents"  evidenceType=FILE  caseFileId=<cf-id>
+evidence_create        id=<uuid-1>      title="test.json"  fileName="test.json"   hash=<sha256>  evidenceGroupId=<uuid-group>  caseFileId=<cf-id>  custodyType=EXTERNAL
+evidence_create        id=<uuid-2>      title="logo.png"   fileName="logo.png"    hash=<sha256>  evidenceGroupId=<uuid-group>  caseFileId=<cf-id>  custodyType=EXTERNAL
+evidence_seal          id=<uuid-group>  caseFileId=<cf-id>  evidencesCount=2
+evidence_group_list    caseFileId=<cf-id>   → expect status=CLOSED, completed=2
+```
+
+## Common mistakes
+
+| Mistake | Effect | Fix |
+|---|---|---|
+| Skip `evidence_seal` | Group stays OPEN ("capturing") forever | Always seal after adding all evidences |
+| Wrong `evidencesCount` | Seal may fail or certify wrong count | Count exactly how many `evidence_create` calls were made |
+| Hash wrong length (≠ 64 hex chars) | `EvidenceCreateError` | Use SHA-256, not MD5 or SHA-1 |
+| Use email as `userId` in `case_file_list` | 403 Forbidden | Call `session_info` first to get the UUID |

@@ -1,27 +1,75 @@
-# Notification Lifecycle
+# Certified Notification Lifecycle
 
-Send certified electronic notifications via GoCertius and retrieve the legal certificate.
+Send a certified electronic notification to one or more recipients and obtain a legal certificate for each one.
 
-## Parameters
+## Notification types
 
-- `subject` (required): Subject line of the notification
-- `body` (required): Body text of the notification (plain text or HTML)
-- `recipient_email` (required): Email address of the recipient
-- `recipient_name` (optional): Full name of the recipient
-- `case_file_id` (optional): UUID to associate the notification with an existing case file
+| Type | API value | What recipients can do |
+|---|---|---|
+| Information only | `NO_RESPONSE` | Read only — no reply expected |
+| Accept / Reject | `ACCEPTED_OR_NOT` | Click Accept or Reject |
+| Received / Received + Not Compliant | `RECEIVED_AGREE` | Acknowledge receipt and agree or disagree |
+
+## Status progression
+
+`CREATING` → `DRAFT` → `IN_PROCESS` → `SENT` → `PARTIALLY_READ` / `FULLY_READ` → `PARTIALLY_ANSWERED` / `FULLY_ANSWERED`
+
+The notification stays in `DRAFT` until explicitly sent via `notification_request_send`.
 
 ## Flow
 
-1. **Create a notification request** — call `notification_request_create` with subject, body, and initial metadata. This is a long-running operation (pollable) — a task ID is returned immediately.
+1. **Create the notification request** (stays DRAFT)
+   - `notification_request_create` with a generated UUID `id`, `caseFileId`, `type`, `subject`, `content`, `language`
+   - Optional: `otpByDefault: true` to require SMS OTP for all recipients
 
-2. **Add recipients** — call `notification_receiver_add` with the recipient's email and name. A single notification request can have multiple recipients.
+2. **Add recipients** (one call each, up to 25)
+   - `notification_receiver_add` with a generated UUID `id`, `notificationRequestId`, `caseFileId`, `firstName`, `lastName`, `email`
+   - Optional: `phoneNumber` + `phonePrefix` when OTP is required; `otpRequired: true` per recipient
 
-3. **Monitor delivery** — use `notification_request_status` with the notification ID to check the current status (pending → sent → delivered → read).
+3. **Send the notification**
+   - `notification_request_send` with `caseFileId` and `notificationRequestId`
+   - Status transitions to `SENT`; GoCertius sends the email to all recipients
 
-4. **Retrieve the certificate** — once delivered, call `notification_certificate_get` to generate the legal notification certificate (PDF + blockchain-anchored).
+4. **Monitor delivery**
+   - `notification_request_status` with `caseFileId` and `notificationRequestId`
+   - Check `status` and `receiverStats` (total / bounced / valid)
+
+5. **Generate per-receiver certificates** (once SENT or later)
+   - `notification_certificate_get` with a generated UUID `id`, `caseFileId`, `notificationRequestId`, `receiverId`, `language`
+   - Creates an intermediate certificate immediately after sending; re-call after `FULLY_ANSWERED` for the final certificate
 
 ## Example
 
-"Send a certified notification to alice@example.com informing her that her contract is ready to sign."
+"Send a certified notification to alice@example.com about her contract status."
 
-Tool sequence: `notification_request_create` → `notification_receiver_add` → `notification_request_status` → `notification_certificate_get`
+```
+notification_request_create
+  id=<uuid>  caseFileId=<cf-id>
+  type=NO_RESPONSE  subject="Your contract is ready"
+  content="Please review the attached information."  language=en_GB
+
+notification_receiver_add
+  id=<uuid>  caseFileId=<cf-id>  notificationRequestId=<notif-id>
+  firstName="Alice"  lastName="Smith"  email="alice@example.com"
+
+notification_request_send
+  caseFileId=<cf-id>  notificationRequestId=<notif-id>
+
+notification_request_status
+  caseFileId=<cf-id>  notificationRequestId=<notif-id>
+  → status=SENT, receiverStats.valid=1
+
+notification_certificate_get
+  id=<cert-uuid>  caseFileId=<cf-id>
+  notificationRequestId=<notif-id>  receiverId=<receiver-id>
+  language=en_GB
+```
+
+## Common mistakes
+
+| Mistake | Effect | Fix |
+|---|---|---|
+| Forget `notification_request_send` | Notification stays DRAFT forever | Always call send after adding recipients |
+| Call `notification_certificate_get` before send | Certificate generation may fail — notification not sent yet | Send first, then generate the certificate |
+| Missing `caseFileId` in receiver add | 404 or routing error | Always pass `caseFileId` alongside `notificationRequestId` |
+| `otpByDefault: true` without phone number | Recipient cannot pass OTP challenge | Set `phoneNumber` + `phonePrefix` on each receiver when OTP is required |
