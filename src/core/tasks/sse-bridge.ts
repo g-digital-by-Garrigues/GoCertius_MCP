@@ -7,7 +7,13 @@
  * Reconnect: exponential backoff 1s/2s/4s/8s/16s (max 5 attempts).
  * Fallback: after 5 failed reconnects, all pending tasks receive onFail().
  * Background tool execution serves as a parallel fallback path (NFR-OPS-003).
+ *
+ * Persistence (STR-E13-02): when persistencePath + filterFactory are provided,
+ * pending task registrations survive server restarts. On startup the bridge
+ * re-registers entries from disk and logs SSE events even if the task store
+ * is no longer available (InMemoryTaskStore does not survive restarts).
  */
+import { readFileSync, renameSync, writeFileSync } from "node:fs";
 
 export interface SseEvent {
   type: string;
@@ -18,15 +24,35 @@ export interface SseEvent {
 export type TaskEventFilter = (event: SseEvent) => boolean;
 export type TerminalMatcher = (event: SseEvent) => "completed" | "failed" | null;
 
-export interface BridgedTask {
-  taskId: string;
+export interface BridgeTaskConfig {
   filter: TaskEventFilter;
   terminal: TerminalMatcher;
   resultExtractor: (event: SseEvent) => unknown;
+}
+
+/** Factory called on restart to reconstruct filter/terminal/extractor from persisted metadata. */
+export type FilterFactory = (toolName: string, filterKey: string) => BridgeTaskConfig | null;
+
+export interface BridgedTask extends BridgeTaskConfig {
+  taskId: string;
   /** Called when the SSE event signals task completion. */
   onComplete: (result: unknown) => Promise<void>;
   /** Called when the SSE event signals task failure. */
   onFail: (error: string) => Promise<void>;
+  /** Persistence metadata — required for state file write (STR-E13-02). */
+  toolName?: string;
+  filterKey?: string;
+}
+
+interface PersistedEntry {
+  taskId: string;
+  toolName: string;
+  filterKey: string;
+  registeredAt: number;
+}
+
+interface BridgeState {
+  tasks: PersistedEntry[];
 }
 
 const RECONNECT_DELAYS_MS = [1000, 2000, 4000, 8000, 16000];
@@ -40,19 +66,23 @@ export class SseBridge {
   private _streamActive = false;
 
   /**
-   * @param getSseUrl  Returns the SSE endpoint URL, or null if unavailable.
-   *                   Called once per connection attempt.
-   * @param getAuthToken  Returns a valid JWT for Bearer auth.
+   * @param getSseUrl      Returns the SSE endpoint URL, or null if unavailable.
+   * @param getAuthToken   Returns a valid JWT for Bearer auth.
+   * @param persistencePath  Optional path to JSON state file (STR-E13-02).
+   * @param filterFactory    Required when persistencePath is set — reconstructs
+   *                         filter config from persisted toolName + filterKey.
    */
   constructor(
     private readonly getSseUrl: () => Promise<string | null>,
     private readonly getAuthToken: () => Promise<string>,
-  ) {}
+    private readonly persistencePath?: string,
+    private readonly filterFactory?: FilterFactory,
+  ) {
+    if (persistencePath && filterFactory) {
+      this.loadAndReregister(filterFactory);
+    }
+  }
 
-  /**
-   * Register a task to be updated by SSE events.
-   * Starts the SSE connection if not already running.
-   */
   connectionStatus(): "connected" | "disconnected" | "unused" {
     if (!this._everStarted) return "unused";
     if (this._streamActive) return "connected";
@@ -61,11 +91,76 @@ export class SseBridge {
 
   registerTask(bridged: BridgedTask): void {
     this.tasks.set(bridged.taskId, bridged);
+    if (bridged.toolName && bridged.filterKey) {
+      this.persistAdd({ taskId: bridged.taskId, toolName: bridged.toolName, filterKey: bridged.filterKey, registeredAt: Date.now() });
+    }
     if (!this.running) this.connect();
   }
 
   deregisterTask(taskId: string): void {
     this.tasks.delete(taskId);
+    this.persistRemove(taskId);
+  }
+
+  // ── Persistence helpers ──────────────────────────────────────────────────────
+
+  private readState(): BridgeState {
+    if (!this.persistencePath) return { tasks: [] };
+    try {
+      const raw = readFileSync(this.persistencePath, "utf8");
+      return JSON.parse(raw) as BridgeState;
+    } catch {
+      return { tasks: [] };
+    }
+  }
+
+  private writeState(state: BridgeState): void {
+    if (!this.persistencePath) return;
+    const tmp = `${this.persistencePath}.tmp`;
+    try {
+      writeFileSync(tmp, JSON.stringify(state, null, 2), "utf8");
+      renameSync(tmp, this.persistencePath);
+    } catch {
+      // Non-fatal — persistence best-effort
+    }
+  }
+
+  private persistAdd(entry: PersistedEntry): void {
+    const state = this.readState();
+    state.tasks = state.tasks.filter((t) => t.taskId !== entry.taskId);
+    state.tasks.push(entry);
+    this.writeState(state);
+  }
+
+  private persistRemove(taskId: string): void {
+    const state = this.readState();
+    state.tasks = state.tasks.filter((t) => t.taskId !== taskId);
+    this.writeState(state);
+  }
+
+  private loadAndReregister(factory: FilterFactory): void {
+    const state = this.readState();
+    for (const entry of state.tasks) {
+      const cfg = factory(entry.toolName, entry.filterKey);
+      if (!cfg) continue;
+      const { taskId, toolName } = entry;
+      // Re-register with log-only callbacks — task store is empty after restart.
+      this.tasks.set(taskId, {
+        taskId,
+        toolName,
+        filterKey: entry.filterKey,
+        ...cfg,
+        onComplete: async (result) => {
+          console.error(JSON.stringify({ level: 30, msg: `SSE (recovered after restart): task ${taskId} (${toolName}) completed`, result: JSON.stringify(result).slice(0, 300) }));
+          this.persistRemove(taskId);
+        },
+        onFail: async (error) => {
+          console.error(JSON.stringify({ level: 40, msg: `SSE (recovered after restart): task ${taskId} (${toolName}) failed — ${error}` }));
+          this.persistRemove(taskId);
+        },
+      });
+    }
+    if (this.tasks.size > 0) this.connect();
   }
 
   private async connect(): Promise<void> {
@@ -184,10 +279,10 @@ export class SseBridge {
 
       const terminal = bridged.terminal(event);
       if (terminal === "completed") {
-        this.tasks.delete(taskId);
+        this.deregisterTask(taskId);
         await bridged.onComplete(bridged.resultExtractor(event));
       } else if (terminal === "failed") {
-        this.tasks.delete(taskId);
+        this.deregisterTask(taskId);
         const errMsg =
           typeof event.data.error === "string" ? event.data.error : "Upstream reported failure";
         await bridged.onFail(errMsg);

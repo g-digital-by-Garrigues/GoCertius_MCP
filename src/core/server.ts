@@ -112,7 +112,8 @@ export async function createServer(config: ServerConfig): Promise<void> {
 
   const BASE_URL = process.env.MCP_API_BASE_URL ?? "";
 
-  // SSE bridge — connects lazily when first pollable task is registered (E7, STR-E7-01)
+  // SSE bridge — connects lazily when first pollable task is registered (E7, STR-E7-01).
+  // Persistence: MCP_BRIDGE_STATE_FILE env var (STR-E13-02); omit to disable.
   const sseBridge = new SseBridge(
     async () => {
       const token = await authSession?.getToken().catch(() => null);
@@ -128,6 +129,8 @@ export async function createServer(config: ServerConfig): Promise<void> {
       const token = await authSession?.getToken();
       return token ?? "";
     },
+    process.env.MCP_BRIDGE_STATE_FILE,
+    (toolName, filterKey) => getSseBridgeConfig(toolName, { id: filterKey }),
   );
 
   const transport = selectTransport();
