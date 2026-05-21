@@ -30,6 +30,7 @@ import {
 } from "./errors/index.js";
 import { IdempotencyCache } from "./idempotency.js";
 import { createLogger } from "./logger.js";
+import { withMetrics } from "./observability.js";
 import type { SseEvent, TaskEventFilter, TerminalMatcher } from "./tasks/sse-bridge.js";
 import {
   SseBridge,
@@ -209,7 +210,12 @@ function registerSyncTool(
     const ctx = buildToolContext(idempKey, auth, mcpServer, idempotency);
 
     try {
-      const result = await tool.execute(input, ctx);
+      const transport = httpCtx ? "http" : "stdio";
+      const result = await withMetrics(
+        tool.name,
+        () => tool.execute(input, ctx),
+        { ...(tool.pollable !== undefined ? { pollable: tool.pollable } : {}), transport },
+      );
       const mcpResult = buildMcpResult(result);
       idempotency.set(tool.name, idempKey, mcpResult, tool.idempotencyWindowSeconds);
       return mcpResult;
@@ -323,7 +329,11 @@ async function executePollable(
   log: ReturnType<typeof createLogger>,
 ): Promise<void> {
   try {
-    const result = await tool.execute(input, ctx);
+    const result = await withMetrics(
+      tool.name,
+      () => tool.execute(input, ctx),
+      { pollable: true, transport: ctx.correlationId ? "http" : "stdio" },
+    );
     // biome-ignore lint/suspicious/noExplicitAny: Result type construction
     await taskStore.storeTaskResult(taskId, "completed", buildCallToolResultPayload(result) as any);
   } catch (err) {

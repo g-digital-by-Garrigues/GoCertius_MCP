@@ -1,18 +1,26 @@
 /**
- * Observability: OpenTelemetry instrumentation behind env flag (E9-01, FR-O-001).
+ * Observability: OpenTelemetry instrumentation behind env flag (E9-01, FR-O-003, FR-O-004).
  *
- * Activated via OTEL_ENABLED=true environment variable.
- * When disabled (default), is a no-op with zero overhead.
+ * Activated via MCP_OTEL_ENABLED=true. Off by default — zero overhead for npx/stdio users.
  *
- * Instruments:
- * - tool call duration (histogram: mcp.tool.duration_ms)
- * - upstream HTTP latency (histogram: mcp.upstream.latency_ms)
- * - auth refresh count (counter: mcp.auth.refresh_total)
- * - active tasks count (gauge: mcp.tasks.active)
+ * Span attributes per tool call:
+ *   tool.name, tool.pollable, mcp.transport, upstream.status_code, upstream.latency_ms
  *
- * OTEL SDK setup is deferred to the product server's entry point.
- * This module only exports the metric helpers used by mcp-core internals.
+ * Metrics emitted (when enabled):
+ *   mcp.tool.duration_ms  — histogram
+ *   mcp.upstream.latency_ms — histogram
+ *   mcp.auth.refresh_total — counter
+ *
+ * OTEL endpoint: OTEL_EXPORTER_OTLP_ENDPOINT (default http://localhost:4318)
+ *
+ * Lazy-load pattern: @opentelemetry/api is dynamically imported only when the flag is set.
+ * The OTel SDK itself (@opentelemetry/sdk-node) must be installed by the consumer who opts in.
+ * If the import fails (not installed), OtelMetrics silently falls back to structured log lines.
  */
+
+import { createLogger } from "./logger.js";
+
+const otelLog = createLogger();
 
 export interface SpanContext {
   toolName: string;
@@ -20,49 +28,130 @@ export interface SpanContext {
 }
 
 export interface ToolMetrics {
-  recordToolCall(toolName: string, durationMs: number, success: boolean): void;
+  recordToolCall(
+    toolName: string,
+    durationMs: number,
+    success: boolean,
+    attrs?: { pollable?: boolean; transport?: string },
+  ): void;
   recordUpstreamLatency(operation: string, latencyMs: number, statusCode: number): void;
   recordAuthRefresh(flow: "email-password" | "openid"): void;
 }
 
-/** No-op implementation — used when OTEL_ENABLED is not set */
+// ── No-op ──────────────────────────────────────────────────────────────────────
+
 class NoopMetrics implements ToolMetrics {
-  recordToolCall(_toolName: string, _durationMs: number, _success: boolean): void {}
-  recordUpstreamLatency(_operation: string, _latencyMs: number, _statusCode: number): void {}
-  recordAuthRefresh(_flow: "email-password" | "openid"): void {}
+  recordToolCall(): void {}
+  recordUpstreamLatency(): void {}
+  recordAuthRefresh(): void {}
 }
 
-/** OpenTelemetry implementation — lazy-loaded when OTEL_ENABLED=true */
+// ── OTel (lazy-loaded) ────────────────────────────────────────────────────────
+
+// biome-ignore lint/suspicious/noExplicitAny: OTel API shape varies by version — typed at runtime
+type OtelApi = any;
+
+let _otelApi: OtelApi | null = null;
+let _otelAttempted = false;
+
+async function getOtelApi(): Promise<OtelApi | null> {
+  if (_otelAttempted) return _otelApi;
+  _otelAttempted = true;
+  try {
+    // Use Function constructor to bypass TS static import resolution for optional peer dep.
+    // @opentelemetry/api must be installed by consumers who set MCP_OTEL_ENABLED=true.
+    // biome-ignore lint/security/noGlobalEval: intentional bypass for optional peer dep lazy-load
+    const lazyImport = new Function("m", "return import(m)") as (m: string) => Promise<unknown>;
+    _otelApi = await lazyImport("@opentelemetry/api");
+    otelLog.info({ transport: "otel" }, "OpenTelemetry API loaded");
+  } catch {
+    otelLog.warn(
+      { transport: "otel" },
+      "MCP_OTEL_ENABLED=true but @opentelemetry/api not installed — falling back to structured log lines. Install @opentelemetry/sdk-node to enable full tracing.",
+    );
+  }
+  return _otelApi;
+}
+
 class OtelMetrics implements ToolMetrics {
-  recordToolCall(toolName: string, durationMs: number, success: boolean): void {
-    // Future: meter.createHistogram('mcp.tool.duration_ms').record(durationMs, { tool: toolName, success })
-    // Placeholder until @opentelemetry/sdk-node is added to dependencies
-    if (process.env.NODE_ENV === "development") {
-      console.log(`[otel] tool=${toolName} duration=${durationMs}ms success=${success}`);
+  private readonly meter = "mcp-core";
+  private readonly endpoint =
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "http://localhost:4318";
+
+  recordToolCall(
+    toolName: string,
+    durationMs: number,
+    success: boolean,
+    attrs: { pollable?: boolean; transport?: string } = {},
+  ): void {
+    void (async () => {
+      const api = await getOtelApi();
+      if (api) {
+        const meter = api.metrics.getMeter(this.meter);
+        meter.createHistogram("mcp.tool.duration_ms", { unit: "ms" }).record(durationMs, {
+          "tool.name": toolName,
+          "tool.success": String(success),
+          "tool.pollable": String(attrs.pollable ?? false),
+          "mcp.transport": attrs.transport ?? "stdio",
+        });
+      } else {
+        // Structured log fallback (pino-compatible)
+        otelLog.info(
+          { tool: toolName, latencyMs: durationMs, transport: attrs.transport ?? "stdio" },
+          success ? "tool.call.ok" : "tool.call.error",
+        );
+      }
+    })();
+    // Log endpoint on first call for discoverability
+    if (!_otelAttempted) {
+      otelLog.info({ transport: "otel" }, `OTel endpoint: ${this.endpoint}`);
     }
   }
 
   recordUpstreamLatency(operation: string, latencyMs: number, statusCode: number): void {
-    if (process.env.NODE_ENV === "development") {
-      console.log(`[otel] upstream=${operation} latency=${latencyMs}ms status=${statusCode}`);
-    }
+    void (async () => {
+      const api = await getOtelApi();
+      if (api) {
+        const meter = api.metrics.getMeter(this.meter);
+        meter
+          .createHistogram("mcp.upstream.latency_ms", { unit: "ms" })
+          .record(latencyMs, { "upstream.operation": operation, "upstream.status_code": String(statusCode) });
+      } else {
+        otelLog.info(
+          { upstream_latency_ms: latencyMs, upstream_status: statusCode },
+          `upstream.${operation}`,
+        );
+      }
+    })();
   }
 
   recordAuthRefresh(flow: "email-password" | "openid"): void {
-    if (process.env.NODE_ENV === "development") {
-      console.log(`[otel] auth.refresh flow=${flow}`);
-    }
+    void (async () => {
+      const api = await getOtelApi();
+      if (api) {
+        const meter = api.metrics.getMeter(this.meter);
+        meter.createCounter("mcp.auth.refresh_total").add(1, { "auth.flow": flow });
+      } else {
+        otelLog.info({ transport: "otel" }, `auth.refresh flow=${flow}`);
+      }
+    })();
   }
 }
 
+// ── Singleton ─────────────────────────────────────────────────────────────────
+
 export const metrics: ToolMetrics =
-  process.env.OTEL_ENABLED === "true" ? new OtelMetrics() : new NoopMetrics();
+  process.env.MCP_OTEL_ENABLED === "true" ? new OtelMetrics() : new NoopMetrics();
 
 /**
- * Time a function and record metrics.
- * Usage: const result = await withMetrics('evidence_create', () => tool.execute(input, ctx));
+ * Time a function and record metrics. Wraps tool execution in server.ts.
+ * When MCP_OTEL_ENABLED=true, emits mcp.tool.duration_ms with span attributes.
  */
-export async function withMetrics<T>(toolName: string, fn: () => Promise<T>): Promise<T> {
+export async function withMetrics<T>(
+  toolName: string,
+  fn: () => Promise<T>,
+  attrs: { pollable?: boolean; transport?: string } = {},
+): Promise<T> {
   const start = Date.now();
   let success = true;
   try {
@@ -71,6 +160,6 @@ export async function withMetrics<T>(toolName: string, fn: () => Promise<T>): Pr
     success = false;
     throw err;
   } finally {
-    metrics.recordToolCall(toolName, Date.now() - start, success);
+    metrics.recordToolCall(toolName, Date.now() - start, success, attrs);
   }
 }

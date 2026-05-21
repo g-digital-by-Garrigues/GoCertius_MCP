@@ -73,6 +73,12 @@ This server exposes 28 tools:
 - **`session_login`** — Performs the session_login operation against the GoCertius API.
 - **`session_info`** — Performs the session_info operation against the GoCertius API.
 
+## Coexistence
+
+This MCP server is the **current, actively maintained** interface for the GoCertius API.
+
+It coexists safely with any other MCP servers in your setup — it exposes only GoCertius-namespaced tools and shares no local state with other servers.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
