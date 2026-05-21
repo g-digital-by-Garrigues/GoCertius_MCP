@@ -26,7 +26,10 @@ export const evidence_group_create = defineTool({
     const sdkClient = createClient(
       createConfig({
         baseUrl: process.env.MCP_API_BASE_URL ?? "",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(ctx.correlationId ? { "X-Correlation-Id": ctx.correlationId } : {}),
+        },
       }),
     );
 

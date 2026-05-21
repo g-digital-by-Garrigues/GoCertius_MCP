@@ -55,6 +55,11 @@ export interface LogContext {
   mcp_method?: string;
   correlationId?: string;
   err?: Error | unknown;
+  // HTTP request logging (STR-E8-03)
+  method?: string;
+  path?: string;
+  status?: number;
+  latencyMs?: number;
 }
 
 export class Logger {

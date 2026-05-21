@@ -43,6 +43,7 @@ import {
 } from "./tasks/sse-bridge.js";
 import type { ToolContext, ToolSpec } from "./tools/index.js";
 import { HonoTransport } from "./transport/http.js";
+import { httpRequestContext } from "./transport/request-context.js";
 import { selectTransport } from "./transport/select.js";
 
 export interface ServerConfig {
@@ -141,6 +142,12 @@ export async function createServer(config: ServerConfig): Promise<void> {
   }
 
   const transport = selectTransport();
+
+  // Wire SSE bridge status into /healthz (STR-E8-03)
+  if (transport instanceof HonoTransport) {
+    transport.setSseStatusProvider(() => sseBridge.connectionStatus());
+  }
+
   log.info(
     { transport: transport instanceof HonoTransport ? "http" : "stdio" },
     `Starting ${config.name} v${config.version}`,
@@ -181,8 +188,12 @@ function registerSyncTool(
     const cached = idempotency.get(tool.name, idempKey);
     if (cached) return cached as ReturnType<typeof buildMcpResult>;
 
+    // HTTP mode: per-request JWT from Bearer header takes precedence over server auth
+    const httpCtx = httpRequestContext.getStore();
     let auth = null;
-    if (authSession && tool.name !== "session_login") {
+    if (httpCtx?.jwt) {
+      auth = { token: httpCtx.jwt, expiresAt: Number.POSITIVE_INFINITY };
+    } else if (authSession && tool.name !== "session_login") {
       try {
         const token = await authSession.getToken();
         auth = { token, expiresAt: Date.now() + 3600_000 };
@@ -238,8 +249,12 @@ function registerPollableTool(
         }
         const input = parseResult.data as Record<string, unknown>;
 
+        // HTTP mode: per-request JWT takes precedence
+        const httpCtx = httpRequestContext.getStore();
         let auth = null;
-        if (authSession && tool.name !== "session_login") {
+        if (httpCtx?.jwt) {
+          auth = { token: httpCtx.jwt, expiresAt: Number.POSITIVE_INFINITY };
+        } else if (authSession && tool.name !== "session_login") {
           const token = await authSession.getToken();
           auth = { token, expiresAt: Date.now() + 3600_000 };
         }
@@ -327,6 +342,7 @@ function buildToolContext(
   mcpServer: McpServer,
   idempotency: IdempotencyCache,
 ): ToolContext {
+  const httpCtx = httpRequestContext.getStore();
   return {
     getIdempotencyKey: () => idempKey,
     toolError: (opts) => {
@@ -334,6 +350,7 @@ function buildToolContext(
     },
     inferRemediation: (err, hints) => inferRemediation(err, hints),
     auth,
+    ...(httpCtx?.correlationId !== undefined ? { correlationId: httpCtx.correlationId } : {}),
     // biome-ignore lint/suspicious/noExplicitAny: ElicitRequestParams exactOptionalPropertyTypes mismatch
     elicitInput: async (params) =>
       (await mcpServer.server.elicitInput(params as any)) as any,

@@ -51,6 +51,8 @@ export type { ToolAnnotations, ToolContext, ToolResult, ToolSpec } from "./tools
 // Tool authoring
 export { defineTool, globalRegistry, ToolRegistry } from "./tools/index.js";
 export { HonoTransport } from "./transport/http.js";
+export type { HttpRequestContext } from "./transport/request-context.js";
+export { httpRequestContext } from "./transport/request-context.js";
 export { selectTransport, UnknownTransportError } from "./transport/select.js";
 // Transport
 export { StdioServerTransport, StdioTransport } from "./transport/stdio.js";

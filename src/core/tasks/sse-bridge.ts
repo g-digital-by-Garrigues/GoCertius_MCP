@@ -36,6 +36,8 @@ export class SseBridge {
   private abortController: AbortController | null = null;
   private reconnectAttempts = 0;
   private running = false;
+  private _everStarted = false;
+  private _streamActive = false;
 
   /**
    * @param getSseUrl  Returns the SSE endpoint URL, or null if unavailable.
@@ -51,6 +53,12 @@ export class SseBridge {
    * Register a task to be updated by SSE events.
    * Starts the SSE connection if not already running.
    */
+  connectionStatus(): "connected" | "disconnected" | "unused" {
+    if (!this._everStarted) return "unused";
+    if (this._streamActive) return "connected";
+    return "disconnected";
+  }
+
   registerTask(bridged: BridgedTask): void {
     this.tasks.set(bridged.taskId, bridged);
     if (!this.running) this.connect();
@@ -63,6 +71,7 @@ export class SseBridge {
   private async connect(): Promise<void> {
     if (this.running) return;
     this.running = true;
+    this._everStarted = true;
     this.reconnectAttempts = 0;
 
     while (this.running && this.tasks.size > 0) {
@@ -101,6 +110,7 @@ export class SseBridge {
 
   private async stream(url: string): Promise<void> {
     this.abortController = new AbortController();
+    this._streamActive = true;
     const token = await this.getAuthToken();
 
     const response = await fetch(url, {
@@ -124,20 +134,25 @@ export class SseBridge {
     const decoder = new TextDecoder();
     let buffer = "";
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
 
-      await this.processLines(lines);
+        await this.processLines(lines);
 
-      if (this.tasks.size === 0) {
-        this.abortController.abort();
-        break;
+        if (this.tasks.size === 0) {
+          this.abortController.abort();
+          break;
+        }
       }
+    } finally {
+      this._streamActive = false;
+      this.abortController = null;
     }
   }
 

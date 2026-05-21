@@ -56,6 +56,8 @@ export interface ToolContext {
   inferRemediation(err: unknown, hints: Record<string, string>): string;
   /** Auth context (token for upstream API calls) — null if no credentials configured */
   auth: AuthContext | null;
+  /** Per-request correlation ID for X-Correlation-Id header propagation (HTTP transport only) */
+  correlationId?: string;
   /**
    * MCP elicitation — prompts the user via the client UI and waits for input.
    * Undefined when the client does not support elicitation.
