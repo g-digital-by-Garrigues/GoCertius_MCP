@@ -33,7 +33,7 @@ import { session_info } from "./tools/session_info.js";
 
 await createServer({
   name: "io.github.g-digital-by-Garrigues/gocertius",
-  version: "0.0.1",
+  version: "1.0.0",
   tools: [
     evidence_create,
 evidence_list,

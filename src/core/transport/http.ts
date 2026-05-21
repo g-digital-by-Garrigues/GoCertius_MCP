@@ -55,7 +55,9 @@ export class HonoTransport {
   private getSseStatus: (() => "connected" | "disconnected" | "unused") | null = null;
 
   constructor(public readonly port = Number(process.env.PORT ?? process.env.HTTP_PORT ?? 8080)) {
-    this.sdkTransport = new StreamableHTTPServerTransport({});
+    this.sdkTransport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => randomUUID(),
+    });
   }
 
   /** Wire SSE bridge status into /healthz (called from server.ts after bridge creation). */
