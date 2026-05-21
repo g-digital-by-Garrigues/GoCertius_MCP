@@ -24,6 +24,7 @@ COPY --from=build /app/package.json ./package.json
 
 USER mcpuser
 
+ENV MCP_TRANSPORT=http
 ENV PORT=8080
 ENV NODE_ENV=production
 
