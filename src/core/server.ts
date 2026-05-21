@@ -81,6 +81,7 @@ function getSseBridgeConfig(
         resultExtractor: (e) => e.data,
       };
     case "signature_request_create":
+    case "signature_request_full_create":
       return {
         filter: signatureRequestFilter(String(input.id ?? input.requestId ?? "")),
         terminal: signatureRequestTerminal,
@@ -346,9 +347,14 @@ function registerPollableTool(
           });
         }
 
-        // sseOnly: task stays in `working` — SSE is the sole completion path (STR-E13-01).
-        // Non-sseOnly: run tool in background; SSE may arrive first (SDK ignores duplicate storeTaskResult).
-        if (!tool.sseOnly || !bridgeCfg) {
+        if (tool.sseOnly && bridgeCfg) {
+          // sseOnly: call the API to create the resource, but do NOT complete the task with the result.
+          // Task stays in `working` — SSE bridge is the sole completion path (STR-E13-01).
+          void tool.execute(input, ctx).catch((err) => {
+            log.error({ tool: tool.name, err }, "sseOnly API call failed — task will not complete");
+          });
+        } else {
+          // Non-sseOnly: run tool in background; SSE may arrive first (SDK ignores duplicate storeTaskResult).
           void executePollable(tool, input, ctx, taskId, capturedStore, log);
         }
 

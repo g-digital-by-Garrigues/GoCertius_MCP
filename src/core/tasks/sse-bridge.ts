@@ -287,7 +287,17 @@ export class SseBridge {
       } else if (line.startsWith("id:")) {
         this.pendingEvent.id = line.slice(3).trim();
       } else if (line === "" && this.pendingEvent.data) {
-        await this.dispatchEvent(this.pendingEvent as SseEvent);
+        const event = this.pendingEvent as SseEvent;
+        // Log every received SSE event for filter debugging
+        console.error(
+          JSON.stringify({
+            level: 20,
+            msg: "SSE event received",
+            event: { type: event.type, id: event.id, data: event.data },
+            pendingTasks: this.tasks.size,
+          }),
+        );
+        await this.dispatchEvent(event);
         this.pendingEvent = {};
       }
     }
@@ -354,6 +364,8 @@ export function notificationTerminal(event: SseEvent): "completed" | "failed" | 
 /** Filter for signature_request_create */
 export function signatureRequestFilter(requestId: string): TaskEventFilter {
   return (event) =>
+    // EAD emits SignatureRequestStatusUpdatedEvent:{companyId} with data.requestId
+    (typeof event.data.requestId === "string" && event.data.requestId === requestId) ||
     (typeof event.data.signatureRequestId === "string" &&
       event.data.signatureRequestId === requestId) ||
     (typeof event.data.id === "string" && event.data.id === requestId);
@@ -361,7 +373,10 @@ export function signatureRequestFilter(requestId: string): TaskEventFilter {
 
 export function signatureRequestTerminal(event: SseEvent): "completed" | "failed" | null {
   const status = event.data.status;
+  // EAD terminal statuses: COMPLETED (fully processed), FULLY_SIGNED (all signed, processing)
   if (
+    status === "COMPLETED" ||
+    status === "FULLY_SIGNED" ||
     status === "SIGNED" ||
     status === "CLOSED" ||
     event.type === "SIGNATURE_REQUEST_SIGNED" ||
@@ -371,6 +386,7 @@ export function signatureRequestTerminal(event: SseEvent): "completed" | "failed
   }
   if (
     status === "CANCELLED" ||
+    status === "REJECTED" ||
     status === "FAILED" ||
     event.type === "SIGNATURE_REQUEST_CANCELLED" ||
     event.type === "SIGNATURE_REQUEST_FAILED"
