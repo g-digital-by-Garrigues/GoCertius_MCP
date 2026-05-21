@@ -1,0 +1,42 @@
+name: Release
+
+# Publishes to npm when a version tag (v*.*.*) is pushed.
+# Tags are created by bumping package.json version and running git tag.
+#
+# OIDC: requires id-token: write — attaches a signed npm provenance
+# attestation linking this package to the exact GitHub Actions run.
+# NPM_TOKEN must be set as a repository secret.
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npx tsup
+
+      - name: Publish with provenance
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
