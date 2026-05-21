@@ -308,7 +308,9 @@ async function exchangeForGoCertiusJwt({
 
 function decodeJwtUserId(jwt: string): string | undefined {
   try {
-    const payload = JSON.parse(Buffer.from(jwt.split(".")[1], "base64").toString());
+    const b64 = jwt.split(".")[1];
+    if (!b64) return undefined;
+    const payload = JSON.parse(Buffer.from(b64, "base64").toString());
     return payload.sub ?? payload.userId ?? payload.id;
   } catch {
     return undefined;

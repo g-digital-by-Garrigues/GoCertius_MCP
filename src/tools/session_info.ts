@@ -71,7 +71,7 @@ function extractUserIdFromJwt(token: string): string | null {
   try {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
-    const payload = parts[1];
+    const payload = parts[1] ?? "";
     // Add padding so atob / Buffer can decode it
     const padded = payload + "=".repeat((4 - (payload.length % 4)) % 4);
     const decoded =
