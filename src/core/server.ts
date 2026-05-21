@@ -2,12 +2,18 @@
  * createServer() — wires all @suite/mcp-core ports into a runnable MCP server.
  * Used by every emitted product server entry point.
  *
- * Pipeline per tool call:
+ * Sync tools:
  *   1. Zod input validation → mapZodError on failure
  *   2. Idempotency check → return cached if within window
  *   3. Auth token (lazy — only if credentials configured)
- *   4. Execute tool with ToolContext
- *   5. Cache result, return
+ *   4. Execute tool with ToolContext, cache result
+ *
+ * Pollable tools (MCP Tasks, STR-E7-03):
+ *   1. Zod input validation
+ *   2. Auth token
+ *   3. Create SDK Task via registerToolTask → return CreateTaskResult immediately
+ *   4. Background: run tool + update task store via captured RequestTaskStore ref
+ *   5. SSE bridge: upstream events update task state when available (E7)
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ZodRawShape } from "zod";
@@ -24,7 +30,17 @@ import {
 } from "./errors/index.js";
 import { IdempotencyCache } from "./idempotency.js";
 import { createLogger } from "./logger.js";
-import { generateTaskId, taskStore } from "./tasks/index.js";
+import type { SseEvent, TaskEventFilter, TerminalMatcher } from "./tasks/sse-bridge.js";
+import {
+  SseBridge,
+  evidenceSealFilter,
+  evidenceSealTerminal,
+  extractCompanyIdFromJwt,
+  notificationFilter,
+  notificationTerminal,
+  signatureRequestFilter,
+  signatureRequestTerminal,
+} from "./tasks/sse-bridge.js";
 import type { ToolContext, ToolSpec } from "./tools/index.js";
 import { HonoTransport } from "./transport/http.js";
 import { selectTransport } from "./transport/select.js";
@@ -35,19 +51,52 @@ export interface ServerConfig {
   tools: ToolSpec[];
 }
 
+interface SseBridgeToolConfig {
+  filter: TaskEventFilter;
+  terminal: TerminalMatcher;
+  resultExtractor: (e: SseEvent) => unknown;
+}
+
+/** Per-tool SSE bridge wiring — returns null for tools without upstream SSE events. */
+function getSseBridgeConfig(
+  toolName: string,
+  input: Record<string, unknown>,
+): SseBridgeToolConfig | null {
+  switch (toolName) {
+    case "evidence_seal":
+      return {
+        filter: evidenceSealFilter(String(input.id ?? input.evidenceGroupId ?? "")),
+        terminal: evidenceSealTerminal,
+        resultExtractor: (e) => e.data,
+      };
+    case "notification_request_create":
+    case "notification_request_send":
+      return {
+        filter: notificationFilter(String(input.id ?? input.notificationRequestId ?? "")),
+        terminal: notificationTerminal,
+        resultExtractor: (e) => e.data,
+      };
+    case "signature_request_create":
+      return {
+        filter: signatureRequestFilter(String(input.id ?? input.requestId ?? "")),
+        terminal: signatureRequestTerminal,
+        resultExtractor: (e) => e.data,
+      };
+    default:
+      return null;
+  }
+}
+
 export async function createServer(config: ServerConfig): Promise<void> {
   const log = createLogger();
   const idempotency = new IdempotencyCache();
 
-  // MCP_AUTH_JWT: pre-seed the device flow store with a known JWT (e.g. extracted from browser).
-  // This bypasses the full auth flow — the JWT is used directly for all tool calls.
   const preseededJwt = process.env.MCP_AUTH_JWT;
   if (preseededJwt) {
-    deviceFlowStore.set(preseededJwt, Date.now() + 8 * 3_600_000); // 8 h validity assumption
+    deviceFlowStore.set(preseededJwt, Date.now() + 8 * 3_600_000);
     log.info("MCP_AUTH_JWT provided — pre-seeding auth session.");
   }
 
-  // Auth: lazy — null if no credentials configured (FR-E-013)
   let authSession: AuthSession | null = null;
   try {
     const adapter = detectAuthAdapter();
@@ -56,99 +105,41 @@ export async function createServer(config: ServerConfig): Promise<void> {
     if (err instanceof AuthConfigError) {
       log.error({ err }, `Auth config error: ${err.message}`);
     }
-    // Boot continues without auth — tools/list still works
   }
+
+  const BASE_URL = process.env.MCP_API_BASE_URL ?? "";
+
+  // SSE bridge — connects lazily when first pollable task is registered (E7, STR-E7-01)
+  const sseBridge = new SseBridge(
+    async () => {
+      const token = await authSession?.getToken().catch(() => null);
+      if (!token) return null;
+      const companyId = extractCompanyIdFromJwt(token);
+      if (!companyId) {
+        log.warn("SSE bridge: companyId not in JWT — SSE unavailable, background execution active.");
+        return null;
+      }
+      return `${BASE_URL}/notifications/sse/${encodeURIComponent(companyId)}`;
+    },
+    async () => {
+      const token = await authSession?.getToken();
+      return token ?? "";
+    },
+  );
 
   const mcpServer = new McpServer({
     name: config.name,
     version: config.version,
   });
 
-  // Register each tool with middleware chain
   for (const tool of config.tools) {
-    // Build the JSON schema shape for this tool (McpServer expects ZodRawShape)
-    // We use the tool's inputSchema directly since McpServer supports ZodType
-    const inputShape = extractZodShape(tool.inputSchema);
-
-    mcpServer.tool(tool.name, tool.description, inputShape, async (rawArgs, _extra) => {
-      // 1. Validate input
-      const parseResult = tool.inputSchema.safeParse(rawArgs);
-      if (!parseResult.success) {
-        return mapZodError(parseResult.error);
-      }
-      const input = parseResult.data as unknown;
-
-      // 2. Idempotency check
-      const idempKey = IdempotencyCache.computeKey(tool.name, input as Record<string, unknown>);
-      const cached = idempotency.get(tool.name, idempKey);
-      if (cached) return cached as ReturnType<typeof buildMcpResult>;
-
-      // 3. Auth (lazy) — skipped for session_login so it can bootstrap device flow
-      let auth = null;
-      if (authSession && tool.name !== "session_login") {
-        try {
-          const token = await authSession.getToken();
-          auth = { token, expiresAt: Date.now() + 3600_000 };
-        } catch (err) {
-          return buildToolError({
-            operation: tool.name,
-            upstream: err,
-            remediation: "Check MCP_AUTH_* credentials in your server config.",
-          });
-        }
-      }
-
-      // 4. Build context
-      const ctx: ToolContext = {
-        getIdempotencyKey: () => idempKey,
-        toolError: (opts) => {
-          throw buildToolError(opts);
-        },
-        inferRemediation: (err, hints) => inferRemediation(err, hints),
-        auth,
-        // Wire elicitation through the underlying Server instance
-        // biome-ignore lint/suspicious/noExplicitAny: SDK ElicitRequestParams ↔ our subset types; content optionality differs under exactOptionalPropertyTypes
-        elicitInput: async (params) =>
-          (await mcpServer.server.elicitInput(params as any)) as any,
-      };
-
-      // 5. Execute
-      try {
-        if (tool.pollable) {
-          const taskId = generateTaskId();
-          const taskEntry = taskStore.create(taskId);
-          // Run in background
-          void executeInBackground(tool, input, ctx, authSession, taskId, idempotency);
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({ taskId: taskEntry.taskId, status: "running" }),
-              },
-            ],
-          };
-        }
-
-        const result = await tool.execute(input, ctx);
-        const mcpResult = buildMcpResult(result);
-        idempotency.set(tool.name, idempKey, mcpResult, tool.idempotencyWindowSeconds);
-        return mcpResult;
-      } catch (err) {
-        if (
-          err !== null &&
-          typeof err === "object" &&
-          "isError" in err &&
-          (err as { isError: boolean }).isError
-        ) {
-          return err as ReturnType<typeof buildMcpResult>;
-        }
-        log.error({ tool: tool.name, err }, "Tool execution error");
-        return mapUpstreamError(err, { operation: tool.name });
-      }
-    });
+    if (tool.pollable) {
+      registerPollableTool(mcpServer, tool, authSession, idempotency, sseBridge, log);
+    } else {
+      registerSyncTool(mcpServer, tool, authSession, idempotency, log);
+    }
   }
 
-  // Start transport
   const transport = selectTransport();
   log.info(
     { transport: transport instanceof HonoTransport ? "http" : "stdio" },
@@ -156,65 +147,230 @@ export async function createServer(config: ServerConfig): Promise<void> {
   );
 
   if (transport instanceof HonoTransport) {
-    // biome-ignore lint/suspicious/noExplicitAny: StreamableHTTPServerTransport implements Transport but exactOptionalPropertyTypes causes mismatch
+    // biome-ignore lint/suspicious/noExplicitAny: SDK transport type mismatch under exactOptionalPropertyTypes
     await mcpServer.connect(transport.sdkTransport as any);
     await transport.start();
   } else {
     await mcpServer.connect(transport);
   }
 
-  // Graceful shutdown (AC5 from E3-01)
   process.on("SIGTERM", async () => {
+    sseBridge.stop();
     await mcpServer.close();
     process.exit(0);
   });
+}
+
+// ── Sync tool ─────────────────────────────────────────────────────────────────
+
+function registerSyncTool(
+  mcpServer: McpServer,
+  tool: ToolSpec,
+  authSession: AuthSession | null,
+  idempotency: IdempotencyCache,
+  log: ReturnType<typeof createLogger>,
+): void {
+  const inputShape = extractZodShape(tool.inputSchema);
+
+  mcpServer.tool(tool.name, tool.description, inputShape, async (rawArgs, _extra) => {
+    const parseResult = tool.inputSchema.safeParse(rawArgs);
+    if (!parseResult.success) return mapZodError(parseResult.error);
+    const input = parseResult.data as unknown;
+
+    const idempKey = IdempotencyCache.computeKey(tool.name, input as Record<string, unknown>);
+    const cached = idempotency.get(tool.name, idempKey);
+    if (cached) return cached as ReturnType<typeof buildMcpResult>;
+
+    let auth = null;
+    if (authSession && tool.name !== "session_login") {
+      try {
+        const token = await authSession.getToken();
+        auth = { token, expiresAt: Date.now() + 3600_000 };
+      } catch (err) {
+        return buildToolError({
+          operation: tool.name,
+          upstream: err,
+          remediation: "Check MCP_AUTH_* credentials in your server config.",
+        });
+      }
+    }
+
+    const ctx = buildToolContext(idempKey, auth, mcpServer, idempotency);
+
+    try {
+      const result = await tool.execute(input, ctx);
+      const mcpResult = buildMcpResult(result);
+      idempotency.set(tool.name, idempKey, mcpResult, tool.idempotencyWindowSeconds);
+      return mcpResult;
+    } catch (err) {
+      if (isMcpError(err)) return err as ReturnType<typeof buildMcpResult>;
+      log.error({ tool: tool.name, err }, "Tool execution error");
+      return mapUpstreamError(err, { operation: tool.name });
+    }
+  });
+}
+
+// ── Pollable tool (MCP Tasks, STR-E7-03) ─────────────────────────────────────
+
+function registerPollableTool(
+  mcpServer: McpServer,
+  tool: ToolSpec,
+  authSession: AuthSession | null,
+  idempotency: IdempotencyCache,
+  sseBridge: SseBridge,
+  log: ReturnType<typeof createLogger>,
+): void {
+  const inputShape = extractZodShape(tool.inputSchema);
+
+  mcpServer.experimental.tasks.registerToolTask(
+    tool.name,
+    {
+      description: tool.description,
+      inputSchema: inputShape,
+      execution: { taskSupport: "required" },
+    },
+    {
+      // biome-ignore lint/suspicious/noExplicitAny: registerToolTask handler types are complex generic; SDK provides runtime safety
+      createTask: async (rawArgs: any, extra: any) => {
+        const parseResult = tool.inputSchema.safeParse(rawArgs);
+        if (!parseResult.success) {
+          throw new Error(mapZodError(parseResult.error).content[0].text);
+        }
+        const input = parseResult.data as Record<string, unknown>;
+
+        let auth = null;
+        if (authSession && tool.name !== "session_login") {
+          const token = await authSession.getToken();
+          auth = { token, expiresAt: Date.now() + 3600_000 };
+        }
+
+        const ctx = buildToolContext(
+          IdempotencyCache.computeKey(tool.name, input),
+          auth,
+          mcpServer,
+          idempotency,
+        );
+
+        // Create SDK-managed task; capture store reference for background closure
+        // biome-ignore lint/suspicious/noExplicitAny: RequestTaskStore not exported from public SDK surface
+        const task = await (extra.taskStore as any).createTask({ ttl: 86_400_000 });
+        // biome-ignore lint/suspicious/noExplicitAny: same as above
+        const capturedStore: any = extra.taskStore;
+
+        // Register with SSE bridge if this tool has upstream events
+        const bridgeCfg = getSseBridgeConfig(tool.name, input);
+        if (bridgeCfg) {
+          sseBridge.registerTask({
+            taskId: task.id,
+            ...bridgeCfg,
+            onComplete: async (result) => {
+              // biome-ignore lint/suspicious/noExplicitAny: Result type construction
+              await capturedStore.storeTaskResult(task.id, "completed", buildCallToolResultPayload(result) as any);
+              log.info({ tool: tool.name }, `SSE: task ${task.id} completed`);
+            },
+            onFail: async (error) => {
+              // biome-ignore lint/suspicious/noExplicitAny: Result type construction
+              await capturedStore.storeTaskResult(task.id, "failed", buildErrorResultPayload(error) as any);
+              log.warn({ tool: tool.name }, `SSE: task ${task.id} failed — ${error}`);
+            },
+          });
+        }
+
+        // Fallback: run tool synchronously in background.
+        // SSE bridge may arrive first and call storeTaskResult — SDK ignores subsequent calls on terminal tasks.
+        void executePollable(tool, input, ctx, task.id, capturedStore, log);
+
+        return { task };
+      },
+
+      // biome-ignore lint/suspicious/noExplicitAny: same generic complexity
+      getTask: async (_rawArgs: any, extra: any) => {
+        return (extra.taskStore as any).getTask(extra.taskId);
+      },
+
+      // biome-ignore lint/suspicious/noExplicitAny: same
+      getTaskResult: async (_rawArgs: any, extra: any) => {
+        return (extra.taskStore as any).getTaskResult(extra.taskId);
+      },
+    },
+  );
+}
+
+// ── Background execution ──────────────────────────────────────────────────────
+
+async function executePollable(
+  tool: ToolSpec,
+  input: Record<string, unknown>,
+  ctx: ToolContext,
+  taskId: string,
+  // biome-ignore lint/suspicious/noExplicitAny: RequestTaskStore
+  taskStore: any,
+  log: ReturnType<typeof createLogger>,
+): Promise<void> {
+  try {
+    const result = await tool.execute(input, ctx);
+    // biome-ignore lint/suspicious/noExplicitAny: Result type construction
+    await taskStore.storeTaskResult(taskId, "completed", buildCallToolResultPayload(result) as any);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    log.error({ tool: tool.name, err }, `Pollable background error for task ${taskId}`);
+    // biome-ignore lint/suspicious/noExplicitAny: Result type construction
+    await taskStore.storeTaskResult(taskId, "failed", buildErrorResultPayload(msg) as any);
+  }
+}
+
+// ── Shared helpers ────────────────────────────────────────────────────────────
+
+function buildToolContext(
+  idempKey: string,
+  auth: { token: string; expiresAt: number } | null,
+  mcpServer: McpServer,
+  idempotency: IdempotencyCache,
+): ToolContext {
+  return {
+    getIdempotencyKey: () => idempKey,
+    toolError: (opts) => {
+      throw buildToolError(opts);
+    },
+    inferRemediation: (err, hints) => inferRemediation(err, hints),
+    auth,
+    // biome-ignore lint/suspicious/noExplicitAny: ElicitRequestParams exactOptionalPropertyTypes mismatch
+    elicitInput: async (params) =>
+      (await mcpServer.server.elicitInput(params as any)) as any,
+  };
 }
 
 function buildMcpResult(result: unknown): {
   content: [{ type: "text"; text: string }];
   isError?: boolean;
 } {
-  if (
-    result !== null &&
-    typeof result === "object" &&
-    "isError" in result &&
-    (result as { isError: boolean }).isError
-  ) {
+  if (isMcpError(result)) {
     return result as { isError: true; content: [{ type: "text"; text: string }] };
   }
   return { content: [{ type: "text", text: JSON.stringify(result) }] };
 }
 
+function buildCallToolResultPayload(result: unknown): object {
+  return { content: [{ type: "text", text: JSON.stringify(result) }] };
+}
+
+function buildErrorResultPayload(error: unknown): object {
+  const msg = typeof error === "string" ? error : String(error);
+  return { isError: true, content: [{ type: "text", text: msg }] };
+}
+
+function isMcpError(val: unknown): boolean {
+  return (
+    val !== null &&
+    typeof val === "object" &&
+    "isError" in val &&
+    (val as { isError: boolean }).isError === true
+  );
+}
+
 function extractZodShape(schema: ToolSpec["inputSchema"]): ZodRawShape {
-  // McpServer.tool() accepts ZodRawShape or AnySchema
-  // If the schema is z.object(), extract its shape for the SDK
   if (schema instanceof z.ZodObject) {
     return schema.shape as ZodRawShape;
   }
-  // For other Zod types, wrap in object
   return { _input: schema } as ZodRawShape;
-}
-
-async function executeInBackground(
-  tool: ToolSpec,
-  input: unknown,
-  ctx: ToolContext,
-  _authSession: AuthSession | null,
-  taskId: string,
-  idempotency: IdempotencyCache,
-): Promise<void> {
-  try {
-    const result = await tool.execute(input, ctx);
-    taskStore.complete(taskId, result);
-    const idempKey = IdempotencyCache.computeKey(tool.name, input as Record<string, unknown>);
-    idempotency.set(
-      tool.name,
-      idempKey,
-      buildMcpResult(result),
-      tool.idempotencyWindowSeconds ?? 86400,
-    );
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    taskStore.fail(taskId, msg);
-  }
 }

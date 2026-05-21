@@ -1,15 +1,13 @@
 /**
- * SSE Bridge: connects to upstream GoCertius SSE events endpoint and
- * maps events to MCP task state transitions (E7, FR-T-001..004, ADR-06).
+ * SSE Bridge: connects to the upstream GoCertius/EAD SSE events endpoint and
+ * maps events to MCP Task state transitions (E7, FR-T-001..004, ADR-06).
  *
  * Endpoint: GET /notifications/sse/{companyId}
- * Events drive InMemoryTaskStore updates for pollable tools.
  *
  * Reconnect: exponential backoff 1s/2s/4s/8s/16s (max 5 attempts).
- * Fallback: polling via tasks/get if SSE fails permanently (NFR-OPS-003).
+ * Fallback: after 5 failed reconnects, all pending tasks receive onFail().
+ * Background tool execution serves as a parallel fallback path (NFR-OPS-003).
  */
-
-import type { InMemoryTaskStore } from "./index.js";
 
 export interface SseEvent {
   type: string;
@@ -25,6 +23,10 @@ export interface BridgedTask {
   filter: TaskEventFilter;
   terminal: TerminalMatcher;
   resultExtractor: (event: SseEvent) => unknown;
+  /** Called when the SSE event signals task completion. */
+  onComplete: (result: unknown) => Promise<void>;
+  /** Called when the SSE event signals task failure. */
+  onFail: (error: string) => Promise<void>;
 }
 
 const RECONNECT_DELAYS_MS = [1000, 2000, 4000, 8000, 16000];
@@ -35,28 +37,46 @@ export class SseBridge {
   private reconnectAttempts = 0;
   private running = false;
 
+  /**
+   * @param getSseUrl  Returns the SSE endpoint URL, or null if unavailable.
+   *                   Called once per connection attempt.
+   * @param getAuthToken  Returns a valid JWT for Bearer auth.
+   */
   constructor(
-    private readonly sseUrl: string,
-    private readonly store: InMemoryTaskStore,
+    private readonly getSseUrl: () => Promise<string | null>,
     private readonly getAuthToken: () => Promise<string>,
   ) {}
 
   /**
    * Register a task to be updated by SSE events.
-   * The task runs until the terminal matcher returns a status.
+   * Starts the SSE connection if not already running.
    */
   registerTask(bridged: BridgedTask): void {
     this.tasks.set(bridged.taskId, bridged);
     if (!this.running) this.connect();
   }
 
+  deregisterTask(taskId: string): void {
+    this.tasks.delete(taskId);
+  }
+
   private async connect(): Promise<void> {
     if (this.running) return;
     this.running = true;
+    this.reconnectAttempts = 0;
 
     while (this.running && this.tasks.size > 0) {
       try {
-        await this.stream();
+        const url = await this.getSseUrl();
+        if (!url) {
+          // No SSE URL available — fail all pending tasks immediately
+          for (const [, bridged] of this.tasks) {
+            await bridged.onFail("SSE bridge: companyId not found in JWT. Task fell back to background execution.");
+          }
+          this.tasks.clear();
+          break;
+        }
+        await this.stream(url);
         this.reconnectAttempts = 0;
       } catch (err) {
         if (!this.running) break;
@@ -64,13 +84,9 @@ export class SseBridge {
         this.reconnectAttempts++;
 
         if (this.reconnectAttempts > RECONNECT_DELAYS_MS.length) {
-          // Max attempts reached — fail all pending tasks (NFR-OPS-003 degraded mode)
-          for (const [taskId] of this.tasks) {
-            const msg = err instanceof Error ? err.message : "SSE connection failed permanently";
-            this.store.fail(
-              taskId,
-              `SSE bridge disconnected: ${msg}. Use tasks/get to poll status.`,
-            );
+          const msg = err instanceof Error ? err.message : "SSE connection failed permanently";
+          for (const [, bridged] of this.tasks) {
+            await bridged.onFail(`SSE bridge disconnected after ${RECONNECT_DELAYS_MS.length} retries: ${msg}`);
           }
           this.tasks.clear();
           break;
@@ -83,14 +99,15 @@ export class SseBridge {
     this.running = false;
   }
 
-  private async stream(): Promise<void> {
+  private async stream(url: string): Promise<void> {
     this.abortController = new AbortController();
     const token = await this.getAuthToken();
 
-    const response = await fetch(this.sseUrl, {
+    const response = await fetch(url, {
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "text/event-stream",
+        "Last-Event-ID": "0",
       },
       signal: this.abortController.signal,
     });
@@ -115,9 +132,8 @@ export class SseBridge {
       const lines = buffer.split("\n");
       buffer = lines.pop() ?? "";
 
-      this.processLines(lines);
+      await this.processLines(lines);
 
-      // Stop if no more tasks to track
       if (this.tasks.size === 0) {
         this.abortController.abort();
         break;
@@ -127,40 +143,39 @@ export class SseBridge {
 
   private pendingEvent: Partial<SseEvent> = {};
 
-  private processLines(lines: string[]): void {
+  private async processLines(lines: string[]): Promise<void> {
     for (const line of lines) {
       if (line.startsWith("data:")) {
         const raw = line.slice(5).trim();
         try {
           this.pendingEvent.data = JSON.parse(raw) as Record<string, unknown>;
         } catch {
-          // Ignore non-JSON SSE data
+          // Non-JSON SSE data — ignore
         }
       } else if (line.startsWith("event:")) {
         this.pendingEvent.type = line.slice(6).trim();
       } else if (line.startsWith("id:")) {
         this.pendingEvent.id = line.slice(3).trim();
       } else if (line === "" && this.pendingEvent.data) {
-        // Dispatch the complete event
-        this.dispatchEvent(this.pendingEvent as SseEvent);
+        await this.dispatchEvent(this.pendingEvent as SseEvent);
         this.pendingEvent = {};
       }
     }
   }
 
-  private dispatchEvent(event: SseEvent): void {
+  private async dispatchEvent(event: SseEvent): Promise<void> {
     for (const [taskId, bridged] of this.tasks) {
       if (!bridged.filter(event)) continue;
 
       const terminal = bridged.terminal(event);
       if (terminal === "completed") {
-        this.store.complete(taskId, bridged.resultExtractor(event));
         this.tasks.delete(taskId);
+        await bridged.onComplete(bridged.resultExtractor(event));
       } else if (terminal === "failed") {
+        this.tasks.delete(taskId);
         const errMsg =
           typeof event.data.error === "string" ? event.data.error : "Upstream reported failure";
-        this.store.fail(taskId, errMsg);
-        this.tasks.delete(taskId);
+        await bridged.onFail(errMsg);
       }
     }
   }
@@ -171,10 +186,9 @@ export class SseBridge {
   }
 }
 
-/**
- * Create a task filter for evidence_seal operations.
- * Matches SSE events where the evidenceGroupId matches.
- */
+// ── Per-tool SSE filter + terminal factories ─────────────────────────────────
+
+/** Filter for evidence_seal (CloseEvidenceGroupController) */
 export function evidenceSealFilter(evidenceGroupId: string): TaskEventFilter {
   return (event) =>
     typeof event.data.evidenceGroupId === "string" &&
@@ -192,13 +206,12 @@ export function evidenceSealTerminal(event: SseEvent): "completed" | "failed" | 
   return null;
 }
 
-/**
- * Create a task filter for notification_request operations.
- */
+/** Filter for notification_request_create / notification_request_send */
 export function notificationFilter(notificationRequestId: string): TaskEventFilter {
   return (event) =>
-    typeof event.data.notificationRequestId === "string" &&
-    event.data.notificationRequestId === notificationRequestId;
+    (typeof event.data.notificationRequestId === "string" &&
+      event.data.notificationRequestId === notificationRequestId) ||
+    (typeof event.data.id === "string" && event.data.id === notificationRequestId);
 }
 
 export function notificationTerminal(event: SseEvent): "completed" | "failed" | null {
@@ -206,4 +219,60 @@ export function notificationTerminal(event: SseEvent): "completed" | "failed" | 
   if (status === "DELIVERED" || event.type === "NOTIFICATION_DELIVERED") return "completed";
   if (status === "FAILED" || event.type === "NOTIFICATION_FAILED") return "failed";
   return null;
+}
+
+/** Filter for signature_request_create */
+export function signatureRequestFilter(requestId: string): TaskEventFilter {
+  return (event) =>
+    (typeof event.data.signatureRequestId === "string" &&
+      event.data.signatureRequestId === requestId) ||
+    (typeof event.data.id === "string" && event.data.id === requestId);
+}
+
+export function signatureRequestTerminal(event: SseEvent): "completed" | "failed" | null {
+  const status = event.data.status;
+  if (
+    status === "SIGNED" ||
+    status === "CLOSED" ||
+    event.type === "SIGNATURE_REQUEST_SIGNED" ||
+    event.type === "SIGNATURE_REQUEST_CLOSED"
+  ) {
+    return "completed";
+  }
+  if (
+    status === "CANCELLED" ||
+    status === "FAILED" ||
+    event.type === "SIGNATURE_REQUEST_CANCELLED" ||
+    event.type === "SIGNATURE_REQUEST_FAILED"
+  ) {
+    return "failed";
+  }
+  return null;
+}
+
+/**
+ * Extract companyId from a JWT payload.
+ * Tries common field names used by GoCertius/EAD identity tokens.
+ */
+export function extractCompanyIdFromJwt(jwt: string): string | null {
+  try {
+    const b64 = jwt.split(".")[1];
+    if (!b64) return null;
+    const payload = JSON.parse(Buffer.from(b64, "base64").toString()) as Record<string, unknown>;
+    // Try common field names in order of likelihood
+    const candidates = ["companyId", "company_id", "cid", "tenantId", "tenant_id", "tid", "oid"];
+    for (const key of candidates) {
+      if (typeof payload[key] === "string" && payload[key]) {
+        return payload[key] as string;
+      }
+    }
+    // Try nested company object
+    const company = payload.company;
+    if (company && typeof company === "object" && "id" in company && typeof (company as Record<string, unknown>).id === "string") {
+      return (company as Record<string, unknown>).id as string;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }

@@ -21,8 +21,8 @@ export const evidence_seal = defineTool({
     idempotent: false,
     requiresUserConfirmation: false,
   },
-  pollable: false,
-  idempotencyWindowSeconds: 60,
+  pollable: true,
+  idempotencyWindowSeconds: 86400,
   async execute(input, ctx) {
     const token = ctx.auth?.token ?? "";
     const sdkClient = createClient(
