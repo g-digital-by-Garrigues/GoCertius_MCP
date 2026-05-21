@@ -22,6 +22,7 @@ export const notification_request_create = defineTool({
     requiresUserConfirmation: false,
   },
   pollable: true,
+  sseOnly: true,
   idempotencyWindowSeconds: 86400,
   async execute(input, ctx) {
     const token = ctx.auth?.token ?? "";

@@ -296,9 +296,11 @@ function registerPollableTool(
           idempotency,
         );
 
-        // Create SDK-managed task; capture store reference for background closure
+        // sseOnly tools wait for human action (signature, notification read) — use 7-day TTL.
+        // Other pollable tools use 24h.
+        const ttl = tool.sseOnly ? 7 * 86_400_000 : 86_400_000;
         // biome-ignore lint/suspicious/noExplicitAny: RequestTaskStore not exported from public SDK surface
-        const task = await (extra.taskStore as any).createTask({ ttl: 86_400_000 });
+        const task = await (extra.taskStore as any).createTask({ ttl });
         // biome-ignore lint/suspicious/noExplicitAny: same as above
         const capturedStore: any = extra.taskStore;
         const taskId = task.taskId as string;
@@ -322,9 +324,11 @@ function registerPollableTool(
           });
         }
 
-        // Fallback: run tool synchronously in background.
-        // SSE bridge may arrive first and call storeTaskResult — SDK ignores subsequent calls on terminal tasks.
-        void executePollable(tool, input, ctx, taskId, capturedStore, log);
+        // sseOnly: task stays in `working` — SSE is the sole completion path (STR-E13-01).
+        // Non-sseOnly: run tool in background; SSE may arrive first (SDK ignores duplicate storeTaskResult).
+        if (!tool.sseOnly || !bridgeCfg) {
+          void executePollable(tool, input, ctx, taskId, capturedStore, log);
+        }
 
         return { task };
       },
