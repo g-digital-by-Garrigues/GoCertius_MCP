@@ -129,44 +129,59 @@ export async function createServer(config: ServerConfig): Promise<void> {
     },
   );
 
-  const mcpServer = new McpServer({
-    name: config.name,
-    version: config.version,
-  });
-
-  for (const tool of config.tools) {
-    if (tool.pollable) {
-      registerPollableTool(mcpServer, tool, authSession, idempotency, sseBridge, log);
-    } else {
-      registerSyncTool(mcpServer, tool, authSession, idempotency, log);
-    }
-  }
-
   const transport = selectTransport();
 
-  // Wire SSE bridge status into /healthz (STR-E8-03)
   if (transport instanceof HonoTransport) {
+    // Wire SSE bridge status into /healthz (STR-E8-03)
     transport.setSseStatusProvider(() => sseBridge.connectionStatus());
-  }
 
-  log.info(
-    { transport: transport instanceof HonoTransport ? "http" : "stdio" },
-    `Starting ${config.name} v${config.version}`,
-  );
+    // Per-session McpServer: each MCP client gets a fresh server instance (Bug 2 fix).
+    // experimental.tasks capability advertised so clients can use callToolStream (Bug 3 fix).
+    transport.setSessionFactory(async (sessionTransport) => {
+      // biome-ignore lint/suspicious/noExplicitAny: McpServer capabilities type under exactOptionalPropertyTypes
+      const sessionServer = new McpServer({ name: config.name, version: config.version }, {
+        capabilities: { experimental: { tasks: {} } },
+      } as any);
+      for (const tool of config.tools) {
+        if (tool.pollable) {
+          registerPollableTool(sessionServer, tool, authSession, idempotency, sseBridge, log);
+        } else {
+          registerSyncTool(sessionServer, tool, authSession, idempotency, log);
+        }
+      }
+      // biome-ignore lint/suspicious/noExplicitAny: SDK transport type mismatch under exactOptionalPropertyTypes
+      await sessionServer.connect(sessionTransport as any);
+    });
 
-  if (transport instanceof HonoTransport) {
-    // biome-ignore lint/suspicious/noExplicitAny: SDK transport type mismatch under exactOptionalPropertyTypes
-    await mcpServer.connect(transport.sdkTransport as any);
+    log.info({ transport: "http" }, `Starting ${config.name} v${config.version}`);
     await transport.start();
-  } else {
-    await mcpServer.connect(transport);
-  }
 
-  process.on("SIGTERM", async () => {
-    sseBridge.stop();
-    await mcpServer.close();
-    process.exit(0);
-  });
+    process.on("SIGTERM", () => {
+      sseBridge.stop();
+      process.exit(0);
+    });
+  } else {
+    // biome-ignore lint/suspicious/noExplicitAny: McpServer capabilities type under exactOptionalPropertyTypes
+    const mcpServer = new McpServer({ name: config.name, version: config.version }, {
+      capabilities: { experimental: { tasks: {} } },
+    } as any);
+    for (const tool of config.tools) {
+      if (tool.pollable) {
+        registerPollableTool(mcpServer, tool, authSession, idempotency, sseBridge, log);
+      } else {
+        registerSyncTool(mcpServer, tool, authSession, idempotency, log);
+      }
+    }
+
+    log.info({ transport: "stdio" }, `Starting ${config.name} v${config.version}`);
+    await mcpServer.connect(transport);
+
+    process.on("SIGTERM", async () => {
+      sseBridge.stop();
+      await mcpServer.close();
+      process.exit(0);
+    });
+  }
 }
 
 // ── Sync tool ─────────────────────────────────────────────────────────────────
