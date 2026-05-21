@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "description": "MCP server for GoCertius, EAD Trust's Digital Trust platform. Provides certified evidence management, dossier creation, certified notifications, and certified chats via AI agents.",
+  "description": "GoCertius MCP — certified evidence, dossiers, notifications and chats from EAD Trust's platform.",
   "name": "io.github.g-digital-by-Garrigues/gocertius",
   "packages": [
     {
