@@ -143,7 +143,7 @@ export async function createServer(config: ServerConfig): Promise<void> {
       const sessionServer = new McpServer({ name: config.name, version: config.version }, {
         capabilities: {
           experimental: { tasks: {} },
-          tasks: { requests: { tools: { call: true } } },
+          tasks: { requests: { tools: { call: {} } } },
         },
         taskStore: new InMemoryTaskStore(),
       } as any);
@@ -170,7 +170,7 @@ export async function createServer(config: ServerConfig): Promise<void> {
     const mcpServer = new McpServer({ name: config.name, version: config.version }, {
       capabilities: {
         experimental: { tasks: {} },
-        tasks: { requests: { tools: { call: true } } },
+        tasks: { requests: { tools: { call: {} } } },
       },
       taskStore: new InMemoryTaskStore(),
     } as any);
