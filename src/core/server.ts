@@ -15,8 +15,9 @@
  *   4. Background: run tool + update task store via captured RequestTaskStore ref
  *   5. SSE bridge: upstream events update task state when available (E7)
  */
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+
 import { InMemoryTaskStore } from "@modelcontextprotocol/sdk/experimental";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ZodRawShape } from "zod";
 import { z } from "zod";
 import { AuthConfigError, detectAuthAdapter } from "./auth/detect.js";
@@ -34,12 +35,12 @@ import { createLogger } from "./logger.js";
 import { withMetrics } from "./observability.js";
 import type { SseEvent, TaskEventFilter, TerminalMatcher } from "./tasks/sse-bridge.js";
 import {
-  SseBridge,
   evidenceSealFilter,
   evidenceSealTerminal,
   extractCompanyIdFromJwt,
   notificationFilter,
   notificationTerminal,
+  SseBridge,
   signatureRequestFilter,
   signatureRequestTerminal,
 } from "./tasks/sse-bridge.js";
@@ -112,14 +113,17 @@ export async function createServer(config: ServerConfig): Promise<void> {
 
   const BASE_URL = process.env.MCP_API_BASE_URL ?? "";
 
-  // SSE bridge — connects lazily when first pollable task is registered (E7, STR-E7-01)
+  // SSE bridge — connects lazily when first pollable task is registered (E7, STR-E7-01).
+  // Persistence: MCP_BRIDGE_STATE_FILE env var (STR-E13-02); omit to disable.
   const sseBridge = new SseBridge(
     async () => {
       const token = await authSession?.getToken().catch(() => null);
       if (!token) return null;
       const companyId = extractCompanyIdFromJwt(token);
       if (!companyId) {
-        log.warn("SSE bridge: companyId not in JWT — SSE unavailable, background execution active.");
+        log.warn(
+          "SSE bridge: companyId not in JWT — SSE unavailable, background execution active.",
+        );
         return null;
       }
       return `${BASE_URL}/notifications/sse/${encodeURIComponent(companyId)}`;
@@ -128,6 +132,8 @@ export async function createServer(config: ServerConfig): Promise<void> {
       const token = await authSession?.getToken();
       return token ?? "";
     },
+    process.env.MCP_BRIDGE_STATE_FILE,
+    (toolName, filterKey) => getSseBridgeConfig(toolName, { id: filterKey }),
   );
 
   const transport = selectTransport();
@@ -235,11 +241,10 @@ function registerSyncTool(
 
     try {
       const transport = httpCtx ? "http" : "stdio";
-      const result = await withMetrics(
-        tool.name,
-        () => tool.execute(input, ctx),
-        { ...(tool.pollable !== undefined ? { pollable: tool.pollable } : {}), transport },
-      );
+      const result = await withMetrics(tool.name, () => tool.execute(input, ctx), {
+        ...(tool.pollable !== undefined ? { pollable: tool.pollable } : {}),
+        transport,
+      });
       const mcpResult = buildMcpResult(result);
       idempotency.set(tool.name, idempKey, mcpResult, tool.idempotencyWindowSeconds);
       return mcpResult;
@@ -296,9 +301,11 @@ function registerPollableTool(
           idempotency,
         );
 
-        // Create SDK-managed task; capture store reference for background closure
+        // sseOnly tools wait for human action (signature, notification read) — use 7-day TTL.
+        // Other pollable tools use 24h.
+        const ttl = tool.sseOnly ? 7 * 86_400_000 : 86_400_000;
         // biome-ignore lint/suspicious/noExplicitAny: RequestTaskStore not exported from public SDK surface
-        const task = await (extra.taskStore as any).createTask({ ttl: 86_400_000 });
+        const task = await (extra.taskStore as any).createTask({ ttl });
         // biome-ignore lint/suspicious/noExplicitAny: same as above
         const capturedStore: any = extra.taskStore;
         const taskId = task.taskId as string;
@@ -306,25 +313,44 @@ function registerPollableTool(
         // Register with SSE bridge if this tool has upstream events
         const bridgeCfg = getSseBridgeConfig(tool.name, input);
         if (bridgeCfg) {
+          const filterKey = String(
+            input.id ??
+              input.requestId ??
+              input.evidenceGroupId ??
+              input.notificationRequestId ??
+              taskId,
+          );
           sseBridge.registerTask({
             taskId,
+            toolName: tool.name,
+            filterKey,
             ...bridgeCfg,
             onComplete: async (result) => {
               // biome-ignore lint/suspicious/noExplicitAny: Result type construction
-              await capturedStore.storeTaskResult(taskId, "completed", buildCallToolResultPayload(result) as any);
+              await capturedStore.storeTaskResult(
+                taskId,
+                "completed",
+                buildCallToolResultPayload(result) as any,
+              );
               log.info({ tool: tool.name }, `SSE: task ${taskId} completed`);
             },
             onFail: async (error) => {
               // biome-ignore lint/suspicious/noExplicitAny: Result type construction
-              await capturedStore.storeTaskResult(taskId, "failed", buildErrorResultPayload(error) as any);
+              await capturedStore.storeTaskResult(
+                taskId,
+                "failed",
+                buildErrorResultPayload(error) as any,
+              );
               log.warn({ tool: tool.name }, `SSE: task ${taskId} failed — ${error}`);
             },
           });
         }
 
-        // Fallback: run tool synchronously in background.
-        // SSE bridge may arrive first and call storeTaskResult — SDK ignores subsequent calls on terminal tasks.
-        void executePollable(tool, input, ctx, taskId, capturedStore, log);
+        // sseOnly: task stays in `working` — SSE is the sole completion path (STR-E13-01).
+        // Non-sseOnly: run tool in background; SSE may arrive first (SDK ignores duplicate storeTaskResult).
+        if (!tool.sseOnly || !bridgeCfg) {
+          void executePollable(tool, input, ctx, taskId, capturedStore, log);
+        }
 
         return { task };
       },
@@ -354,11 +380,10 @@ async function executePollable(
   log: ReturnType<typeof createLogger>,
 ): Promise<void> {
   try {
-    const result = await withMetrics(
-      tool.name,
-      () => tool.execute(input, ctx),
-      { pollable: true, transport: ctx.correlationId ? "http" : "stdio" },
-    );
+    const result = await withMetrics(tool.name, () => tool.execute(input, ctx), {
+      pollable: true,
+      transport: ctx.correlationId ? "http" : "stdio",
+    });
     // biome-ignore lint/suspicious/noExplicitAny: Result type construction
     await taskStore.storeTaskResult(taskId, "completed", buildCallToolResultPayload(result) as any);
   } catch (err) {
@@ -387,8 +412,7 @@ function buildToolContext(
     auth,
     ...(httpCtx?.correlationId !== undefined ? { correlationId: httpCtx.correlationId } : {}),
     // biome-ignore lint/suspicious/noExplicitAny: ElicitRequestParams exactOptionalPropertyTypes mismatch
-    elicitInput: async (params) =>
-      (await mcpServer.server.elicitInput(params as any)) as any,
+    elicitInput: async (params) => (await mcpServer.server.elicitInput(params as any)) as any,
   };
 }
 

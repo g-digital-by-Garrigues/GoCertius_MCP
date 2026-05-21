@@ -75,8 +75,7 @@ async function getOtelApi(): Promise<OtelApi | null> {
 
 class OtelMetrics implements ToolMetrics {
   private readonly meter = "mcp-core";
-  private readonly endpoint =
-    process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "http://localhost:4318";
+  private readonly endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "http://localhost:4318";
 
   recordToolCall(
     toolName: string,
@@ -113,9 +112,10 @@ class OtelMetrics implements ToolMetrics {
       const api = await getOtelApi();
       if (api) {
         const meter = api.metrics.getMeter(this.meter);
-        meter
-          .createHistogram("mcp.upstream.latency_ms", { unit: "ms" })
-          .record(latencyMs, { "upstream.operation": operation, "upstream.status_code": String(statusCode) });
+        meter.createHistogram("mcp.upstream.latency_ms", { unit: "ms" }).record(latencyMs, {
+          "upstream.operation": operation,
+          "upstream.status_code": String(statusCode),
+        });
       } else {
         otelLog.info(
           { upstream_latency_ms: latencyMs, upstream_status: statusCode },

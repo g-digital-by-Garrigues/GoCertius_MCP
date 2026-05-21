@@ -110,9 +110,7 @@ export class HonoTransport {
           transport: "http",
           version: process.env.npm_package_version ?? "0.0.1",
           openapi_snapshot_version:
-            process.env.OPENAPI_SNAPSHOT_VERSION ??
-            process.env.npm_package_version ??
-            "0.0.1",
+            process.env.OPENAPI_SNAPSHOT_VERSION ?? process.env.npm_package_version ?? "0.0.1",
           uptime_seconds: Math.floor((Date.now() - startedAt) / 1000),
           sse_connection: this.getSseStatus?.() ?? "unused",
           active_sessions: this.sessions.size,
