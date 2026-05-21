@@ -92,7 +92,12 @@ export class SseBridge {
   registerTask(bridged: BridgedTask): void {
     this.tasks.set(bridged.taskId, bridged);
     if (bridged.toolName && bridged.filterKey) {
-      this.persistAdd({ taskId: bridged.taskId, toolName: bridged.toolName, filterKey: bridged.filterKey, registeredAt: Date.now() });
+      this.persistAdd({
+        taskId: bridged.taskId,
+        toolName: bridged.toolName,
+        filterKey: bridged.filterKey,
+        registeredAt: Date.now(),
+      });
     }
     if (!this.running) this.connect();
   }
@@ -151,11 +156,22 @@ export class SseBridge {
         filterKey: entry.filterKey,
         ...cfg,
         onComplete: async (result) => {
-          console.error(JSON.stringify({ level: 30, msg: `SSE (recovered after restart): task ${taskId} (${toolName}) completed`, result: JSON.stringify(result).slice(0, 300) }));
+          console.error(
+            JSON.stringify({
+              level: 30,
+              msg: `SSE (recovered after restart): task ${taskId} (${toolName}) completed`,
+              result: JSON.stringify(result).slice(0, 300),
+            }),
+          );
           this.persistRemove(taskId);
         },
         onFail: async (error) => {
-          console.error(JSON.stringify({ level: 40, msg: `SSE (recovered after restart): task ${taskId} (${toolName}) failed — ${error}` }));
+          console.error(
+            JSON.stringify({
+              level: 40,
+              msg: `SSE (recovered after restart): task ${taskId} (${toolName}) failed — ${error}`,
+            }),
+          );
           this.persistRemove(taskId);
         },
       });
@@ -175,7 +191,9 @@ export class SseBridge {
         if (!url) {
           // No SSE URL available — fail all pending tasks immediately
           for (const [, bridged] of this.tasks) {
-            await bridged.onFail("SSE bridge: companyId not found in JWT. Task fell back to background execution.");
+            await bridged.onFail(
+              "SSE bridge: companyId not found in JWT. Task fell back to background execution.",
+            );
           }
           this.tasks.clear();
           break;
@@ -190,7 +208,9 @@ export class SseBridge {
         if (this.reconnectAttempts > RECONNECT_DELAYS_MS.length) {
           const msg = err instanceof Error ? err.message : "SSE connection failed permanently";
           for (const [, bridged] of this.tasks) {
-            await bridged.onFail(`SSE bridge disconnected after ${RECONNECT_DELAYS_MS.length} retries: ${msg}`);
+            await bridged.onFail(
+              `SSE bridge disconnected after ${RECONNECT_DELAYS_MS.length} retries: ${msg}`,
+            );
           }
           this.tasks.clear();
           break;
@@ -378,7 +398,12 @@ export function extractCompanyIdFromJwt(jwt: string): string | null {
     }
     // Try nested company object
     const company = payload.company;
-    if (company && typeof company === "object" && "id" in company && typeof (company as Record<string, unknown>).id === "string") {
+    if (
+      company &&
+      typeof company === "object" &&
+      "id" in company &&
+      typeof (company as Record<string, unknown>).id === "string"
+    ) {
       return (company as Record<string, unknown>).id as string;
     }
     return null;

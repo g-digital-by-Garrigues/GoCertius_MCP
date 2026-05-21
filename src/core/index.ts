@@ -43,9 +43,9 @@ export {
   extractCompanyIdFromJwt,
   notificationFilter,
   notificationTerminal,
+  SseBridge,
   signatureRequestFilter,
   signatureRequestTerminal,
-  SseBridge,
 } from "./tasks/sse-bridge.js";
 export type { ToolAnnotations, ToolContext, ToolResult, ToolSpec } from "./tools/index.js";
 // Tool authoring

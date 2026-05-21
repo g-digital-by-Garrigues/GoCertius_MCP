@@ -78,6 +78,15 @@ export interface ToolSpec<I extends ZodType = ZodType> {
   annotations?: ToolAnnotations;
   /** True → returns CreateTaskResult; SSE bridge wired in E7 */
   pollable?: boolean;
+  /**
+   * When true, the executePollable fallback is suppressed for this tool.
+   * The MCP task stays in `working` until the SSE bridge fires the terminal event.
+   * Use for tools where the meaningful result is a future human action
+   * (e.g. signature_request_create, notification_request_send).
+   * Requires the tool to have an SSE bridge config in getSseBridgeConfig().
+   * STR-E13-01
+   */
+  sseOnly?: boolean;
   /** Dedup window: 60s for sync, 86400 for pollable (NFR-R-004) */
   idempotencyWindowSeconds?: number;
   /** Tool implementation — called after auth + idempotency checks */
