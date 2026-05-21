@@ -1,5 +1,6 @@
 /**
  * Streamable HTTP transport — production-ready (E8).
+ * Multi-session: each MCP client gets its own StreamableHTTPServerTransport (Bug 2 fix).
  *
  * Routes:
  *   POST /mcp   — client→server JSON-RPC (Streamable HTTP)
@@ -51,18 +52,35 @@ function send401(res: ServerResponse, correlationId: string, message: string): v
 }
 
 export class HonoTransport {
-  public readonly sdkTransport: StreamableHTTPServerTransport;
+  private readonly sessions = new Map<string, StreamableHTTPServerTransport>();
+  private sessionFactory: ((transport: StreamableHTTPServerTransport) => Promise<void>) | null =
+    null;
   private getSseStatus: (() => "connected" | "disconnected" | "unused") | null = null;
 
-  constructor(public readonly port = Number(process.env.PORT ?? process.env.HTTP_PORT ?? 8080)) {
-    this.sdkTransport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => randomUUID(),
-    });
-  }
+  constructor(public readonly port = Number(process.env.PORT ?? process.env.HTTP_PORT ?? 8080)) {}
 
   /** Wire SSE bridge status into /healthz (called from server.ts after bridge creation). */
   setSseStatusProvider(provider: () => "connected" | "disconnected" | "unused"): void {
     this.getSseStatus = provider;
+  }
+
+  /** Register factory that creates and connects a fresh McpServer per session. */
+  setSessionFactory(factory: (transport: StreamableHTTPServerTransport) => Promise<void>): void {
+    this.sessionFactory = factory;
+  }
+
+  private createAndRegisterSession(): StreamableHTTPServerTransport {
+    const sessionId = randomUUID();
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => sessionId,
+    });
+    this.sessions.set(sessionId, transport);
+    transport.onclose = () => {
+      this.sessions.delete(sessionId);
+      log.info({ sessionId }, "MCP session closed");
+    };
+    log.info({ sessionId }, "MCP session created");
+    return transport;
   }
 
   async start(): Promise<void> {
@@ -97,6 +115,7 @@ export class HonoTransport {
             "0.0.1",
           uptime_seconds: Math.floor((Date.now() - startedAt) / 1000),
           sse_connection: this.getSseStatus?.() ?? "unused",
+          active_sessions: this.sessions.size,
         });
         res.writeHead(200, {
           "Content-Type": "application/json",
@@ -121,28 +140,71 @@ export class HonoTransport {
           return;
         }
 
+        const sessionIdHeader = req.headers["mcp-session-id"] as string | undefined;
+
         if (req.method === "POST") {
           const chunks: Buffer[] = [];
           req.on("data", (chunk: Buffer) => chunks.push(chunk));
           req.on("end", () => {
-            let parsedBody: unknown = null;
-            try {
-              const raw = Buffer.concat(chunks).toString();
-              if (raw) parsedBody = JSON.parse(raw);
-            } catch {
-              // SDK handles malformed JSON
-            }
-            void httpRequestContext.run({ jwt, correlationId }, () =>
-              this.sdkTransport.handleRequest(req, res, parsedBody),
-            );
+            void (async () => {
+              let parsedBody: unknown = null;
+              try {
+                const raw = Buffer.concat(chunks).toString();
+                if (raw) parsedBody = JSON.parse(raw);
+              } catch {
+                // SDK handles malformed JSON
+              }
+
+              let sessionTransport: StreamableHTTPServerTransport;
+
+              if (sessionIdHeader) {
+                const existing = this.sessions.get(sessionIdHeader);
+                if (!existing) {
+                  res.writeHead(404, {
+                    "Content-Type": "application/json",
+                    "X-Correlation-Id": correlationId,
+                  });
+                  res.end(JSON.stringify({ error: "Session not found or expired" }));
+                  return;
+                }
+                sessionTransport = existing;
+              } else {
+                // New session — create transport, wire McpServer before handling initialize
+                sessionTransport = this.createAndRegisterSession();
+                if (this.sessionFactory) {
+                  await this.sessionFactory(sessionTransport);
+                }
+              }
+
+              void httpRequestContext.run({ jwt, correlationId }, () =>
+                sessionTransport.handleRequest(req, res, parsedBody),
+              );
+            })();
           });
           req.on("error", (err) => {
             log.error({ err, correlationId, transport: "http" }, "Request stream error");
           });
         } else {
-          // GET / DELETE — no body
+          // GET / DELETE — session ID required (client must have completed initialize first)
+          if (!sessionIdHeader) {
+            res.writeHead(400, {
+              "Content-Type": "application/json",
+              "X-Correlation-Id": correlationId,
+            });
+            res.end(JSON.stringify({ error: "Missing Mcp-Session-Id header" }));
+            return;
+          }
+          const existing = this.sessions.get(sessionIdHeader);
+          if (!existing) {
+            res.writeHead(404, {
+              "Content-Type": "application/json",
+              "X-Correlation-Id": correlationId,
+            });
+            res.end(JSON.stringify({ error: "Session not found or expired" }));
+            return;
+          }
           void httpRequestContext.run({ jwt, correlationId }, () =>
-            this.sdkTransport.handleRequest(req, res, null),
+            existing.handleRequest(req, res, null),
           );
         }
         return;
