@@ -19,6 +19,7 @@ const ALLOWED_FIELDS = new Set([
   "upstream_latency_ms",
   "mcp_method",
   "correlationId",
+  "sessionId",
   "level",
   "time",
   "msg",
@@ -54,6 +55,7 @@ export interface LogContext {
   upstream_latency_ms?: number;
   mcp_method?: string;
   correlationId?: string;
+  sessionId?: string;
   err?: Error | unknown;
   // HTTP request logging (STR-E8-03)
   method?: string;
