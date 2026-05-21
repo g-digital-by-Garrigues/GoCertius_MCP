@@ -42,7 +42,7 @@
           "name": "PORT"
         }
       ],
-      "identifier": "mcp-gocertius",
+      "identifier": "@g-digital/mcp-gocertius",
       "registryType": "npm",
       "transport": {
         "type": "stdio"
