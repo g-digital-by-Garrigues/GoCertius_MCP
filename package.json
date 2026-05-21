@@ -1,7 +1,7 @@
 {
   "name": "@g-digital/mcp-gocertius",
   "version": "0.0.1",
-  "description": "MCP server for GoCertius — Garrigues&#x27; Digital Trust platform. Provides certified evidence management, dossier creation, certified notifications, and certified chats via AI agents.",
+  "description": "MCP server for GoCertius, EAD Trust&#x27;s Digital Trust platform. Provides certified evidence management, dossier creation, certified notifications, and certified chats via AI agents.",
   "mcpName": "io.github.g-digital-by-Garrigues/gocertius",
   "license": "MIT",
   "type": "module",
