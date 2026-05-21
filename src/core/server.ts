@@ -16,6 +16,7 @@
  *   5. SSE bridge: upstream events update task state when available (E7)
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { InMemoryTaskStore } from "@modelcontextprotocol/sdk/experimental";
 import type { ZodRawShape } from "zod";
 import { z } from "zod";
 import { AuthConfigError, detectAuthAdapter } from "./auth/detect.js";
@@ -138,9 +139,13 @@ export async function createServer(config: ServerConfig): Promise<void> {
     // Per-session McpServer: each MCP client gets a fresh server instance (Bug 2 fix).
     // experimental.tasks capability advertised so clients can use callToolStream (Bug 3 fix).
     transport.setSessionFactory(async (sessionTransport) => {
-      // biome-ignore lint/suspicious/noExplicitAny: McpServer capabilities type under exactOptionalPropertyTypes
+      // biome-ignore lint/suspicious/noExplicitAny: McpServer capabilities type + taskStore under exactOptionalPropertyTypes
       const sessionServer = new McpServer({ name: config.name, version: config.version }, {
-        capabilities: { experimental: { tasks: {} } },
+        capabilities: {
+          experimental: { tasks: {} },
+          tasks: { requests: { tools: { call: true } } },
+        },
+        taskStore: new InMemoryTaskStore(),
       } as any);
       for (const tool of config.tools) {
         if (tool.pollable) {
@@ -161,9 +166,13 @@ export async function createServer(config: ServerConfig): Promise<void> {
       process.exit(0);
     });
   } else {
-    // biome-ignore lint/suspicious/noExplicitAny: McpServer capabilities type under exactOptionalPropertyTypes
+    // biome-ignore lint/suspicious/noExplicitAny: McpServer capabilities type + taskStore under exactOptionalPropertyTypes
     const mcpServer = new McpServer({ name: config.name, version: config.version }, {
-      capabilities: { experimental: { tasks: {} } },
+      capabilities: {
+        experimental: { tasks: {} },
+        tasks: { requests: { tools: { call: true } } },
+      },
+      taskStore: new InMemoryTaskStore(),
     } as any);
     for (const tool of config.tools) {
       if (tool.pollable) {
@@ -292,29 +301,30 @@ function registerPollableTool(
         const task = await (extra.taskStore as any).createTask({ ttl: 86_400_000 });
         // biome-ignore lint/suspicious/noExplicitAny: same as above
         const capturedStore: any = extra.taskStore;
+        const taskId = task.taskId as string;
 
         // Register with SSE bridge if this tool has upstream events
         const bridgeCfg = getSseBridgeConfig(tool.name, input);
         if (bridgeCfg) {
           sseBridge.registerTask({
-            taskId: task.id,
+            taskId,
             ...bridgeCfg,
             onComplete: async (result) => {
               // biome-ignore lint/suspicious/noExplicitAny: Result type construction
-              await capturedStore.storeTaskResult(task.id, "completed", buildCallToolResultPayload(result) as any);
-              log.info({ tool: tool.name }, `SSE: task ${task.id} completed`);
+              await capturedStore.storeTaskResult(taskId, "completed", buildCallToolResultPayload(result) as any);
+              log.info({ tool: tool.name }, `SSE: task ${taskId} completed`);
             },
             onFail: async (error) => {
               // biome-ignore lint/suspicious/noExplicitAny: Result type construction
-              await capturedStore.storeTaskResult(task.id, "failed", buildErrorResultPayload(error) as any);
-              log.warn({ tool: tool.name }, `SSE: task ${task.id} failed — ${error}`);
+              await capturedStore.storeTaskResult(taskId, "failed", buildErrorResultPayload(error) as any);
+              log.warn({ tool: tool.name }, `SSE: task ${taskId} failed — ${error}`);
             },
           });
         }
 
         // Fallback: run tool synchronously in background.
         // SSE bridge may arrive first and call storeTaskResult — SDK ignores subsequent calls on terminal tasks.
-        void executePollable(tool, input, ctx, task.id, capturedStore, log);
+        void executePollable(tool, input, ctx, taskId, capturedStore, log);
 
         return { task };
       },
