@@ -1,0 +1,79 @@
+name: Publish
+
+# Thin wrapper that calls the g-digital MCP distribution pipeline as a
+# reusable workflow. All publish logic lives in:
+#   g-digital-by-Garrigues/MCP_Market_Distribution/.github/workflows/publish.yml
+#
+# To trigger a release:
+#   1. Bump version in package.json
+#   2. Run /prep-mcp locally to regenerate artifacts
+#   3. Open PR, get it merged to main
+#   4. Create and push the version tag: git tag v<VERSION> && git push origin v<VERSION>
+#      The push triggers this workflow automatically.
+#
+# Manual dispatch: use the "Run workflow" button in the Actions tab.
+# All pipeline secrets (BOT_PAT, NPM_TOKEN, DOCKERHUB_*, SMITHERY_TOKEN)
+# must be configured as organisation-level secrets (or repo-level secrets here).
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (auto-extracted from tag on tag push)"
+        required: false
+        type: string
+      step:
+        description: "target/phase: gate/publish/all or single target ID (npm, docker-hub, ...)"
+        required: false
+        type: string
+        default: all
+      track:
+        description: "Track(s) to run: a / b / both"
+        required: false
+        type: string
+        default: both
+      dry_run:
+        description: "Dry-run mode — validates all gates without publishing"
+        required: false
+        type: boolean
+        default: false
+
+# Permissions required by the pipeline reusable workflow:
+#   id-token:write    — npm OIDC Trusted Publishers (provenance attestation)
+#   contents:write    — release-report commit to pipeline main
+#   pull-requests:write — release-report PR comment on this repo
+permissions:
+  contents: write
+  id-token: write
+  pull-requests: write
+
+jobs:
+  prepare:
+    name: Extract version from tag or input
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            # Strip leading 'v' from tag name (e.g., v1.2.3 -> 1.2.3)
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish:
+    name: Publish via g-digital MCP pipeline
+    needs: prepare
+    uses: g-digital-by-Garrigues/MCP_Market_Distribution/.github/workflows/publish.yml@main
+    with:
+      mcp_name: gocertius
+      version: ${{ needs.prepare.outputs.version }}
+      step: ${{ inputs.step || 'all' }}
+      track: ${{ inputs.track || 'both' }}
+      dry_run: ${{ inputs.dry_run == true }}
+    secrets: inherit
