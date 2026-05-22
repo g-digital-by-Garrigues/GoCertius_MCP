@@ -1,4 +1,4 @@
-FROM node:22-slim AS base
+FROM node:22-alpine AS base
 WORKDIR /app
 
 FROM base AS build
@@ -9,14 +9,19 @@ RUN npm run build
 
 FROM base AS deps
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev && npm cache clean --force
 
-FROM node:22-slim AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 
-# Create non-root user
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 mcpuser
+# Patch OS packages to fix CVEs disclosed after the base image was built.
+RUN apk update && apk upgrade --no-cache
+
+# Update bundled npm so its transitive deps (e.g. picomatch) are at patched
+# versions. node:22-alpine ships npm 10.x flagged HIGH by Docker Scout.
+RUN npm install -g npm@latest && npm cache clean --force
+
+RUN addgroup -S nodejs && adduser -S mcpuser -G nodejs
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
@@ -31,6 +36,6 @@ ENV NODE_ENV=production
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD node -e "fetch('http://localhost:' + (process.env.PORT || 8080) + '/healthz').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+  CMD wget -qO- http://localhost:8080/healthz || exit 1
 
 CMD ["node", "dist/server.js"]
