@@ -14,15 +14,14 @@ const inputSchema = z.object({
 
 export const notification_request_create = defineTool({
   name: "notification_request_create",
-  description: "Performs the notification_request_create operation against the GoCertius API. Review the API documentation for full field details.",
+  description: "Create a certified notification request in DRAFT status. Returns immediately with the request ID. After creating, add recipients via notification_receiver_add, then trigger delivery via notification_request_send.",
   inputSchema,
   annotations: {
     destructive: false,
     idempotent: false,
     requiresUserConfirmation: false,
   },
-  pollable: true,
-  sseOnly: true,
+  pollable: false,
   idempotencyWindowSeconds: 86400,
   async execute(input, ctx) {
     const token = ctx.auth?.token ?? "";
