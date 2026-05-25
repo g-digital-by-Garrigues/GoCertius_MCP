@@ -12,15 +12,14 @@ const inputSchema = z.object({
 
 export const notification_request_send = defineTool({
   name: "notification_request_send",
-  description: "Trigger delivery of a certified notification to all added recipients. This is a long-running operation — the task completes via SSE when the notification reaches DELIVERED status. Call after notification_request_create and notification_receiver_add.",
+  description: "Trigger delivery of a certified notification to all added recipients. Returns immediately — delivery is async. Poll notification_request_status until status is DELIVERED before retrieving certificates.",
   inputSchema,
   annotations: {
     destructive: false,
     idempotent: false,
     requiresUserConfirmation: false,
   },
-  pollable: true,
-  sseOnly: true,
+  pollable: false,
   idempotencyWindowSeconds: 86400,
   async execute(input, ctx) {
     const token = ctx.auth?.token ?? "";
