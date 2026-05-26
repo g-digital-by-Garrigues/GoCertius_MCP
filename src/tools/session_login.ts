@@ -8,11 +8,11 @@
 // Copied verbatim by the generator (AC3 override mechanism).
 // Paths are relative to the emitted location: dist-repos/gocertius/src/tools/
 
+import { z } from "zod";
 import { deviceFlowStore } from "../core/auth/device-flow.js";
 import { defineTool } from "../core/index.js";
-import { z } from "zod";
 
-const POLL_MAX_ATTEMPTS = 6;   // ~30 s per call (6 × 5 s); user calls again if not yet approved
+const POLL_MAX_ATTEMPTS = 6; // ~30 s per call (6 × 5 s); user calls again if not yet approved
 const BASE_URL = process.env.MCP_API_BASE_URL ?? "https://api-gocertius.gocertius.io";
 
 // ── Pending device flow store ─────────────────────────────────────────────────
@@ -44,9 +44,7 @@ export const session_login = defineTool({
     const password = process.env.MCP_AUTH_PASSWORD;
 
     if (!email) {
-      throw new Error(
-        "MCP_AUTH_EMAIL is required — set it to your GoCertius account email.",
-      );
+      throw new Error("MCP_AUTH_EMAIL is required — set it to your GoCertius account email.");
     }
 
     // Step 2: If a device flow is already pending, poll Azure AD for the token.
@@ -246,7 +244,10 @@ async function pollPendingDeviceFlow() {
 
     const err = (await tokenRes.json()) as { error?: string };
     if (err.error === "authorization_pending") continue;
-    if (err.error === "slow_down") { await sleep(flow.interval); continue; }
+    if (err.error === "slow_down") {
+      await sleep(flow.interval);
+      continue;
+    }
     pendingDeviceFlow = null;
     throw new Error(`Azure AD token error: ${err.error ?? "unknown"}`);
   }

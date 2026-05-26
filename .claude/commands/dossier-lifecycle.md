@@ -57,6 +57,26 @@ dossier_list  caseFileId=<cf-id>   → expect status=CERTIFYING then CERTIFIED
 
 Use `evidence_list` with `caseFileId` + `evidenceGroupId` to get IDs per group, then collect them all before calling `dossier_evidence_link`.
 
+## After certification
+
+Once status is `CERTIFIED`, these operations are available:
+
+| Action | Tool | Notes |
+|---|---|---|
+| Download PDF | `dossier_document_url` | Returns a presigned URL for the certified PDF |
+| Download ZIP | `dossier_package_url` | Returns a presigned URL for ZIP (PDF + evidence files) |
+| Manage visibility | `dossier_visibility` | Toggle public access to the certificate |
+| Delete certificate | `dossier_delete` | Permanent — cannot be undone |
+
+## Linked evidence management
+
+After linking, inspect or remove linked evidences:
+
+- `dossier_evidence_list` — list all evidences linked to the dossier
+- `dossier_evidence_get` — get details of a specific linked evidence
+- `dossier_evidence_delete` — unlink a specific evidence (only in `DRAFT`)
+- `dossier_evidence_list_to_link` — browse evidences eligible for linking
+
 ## Common mistakes
 
 | Mistake | Effect | Fix |
@@ -65,3 +85,4 @@ Use `evidence_list` with `caseFileId` + `evidenceGroupId` to get IDs per group, 
 | Call `dossier_group_certify` in parallel with same `id` | Race condition — first certifies, rest fail | Use express only once per dossier; use full flow for multiple groups |
 | Missing `caseFileId` in `dossier_certify` or `dossier_evidence_link` | Empty network error | Both require `caseFileId` — always pass it explicitly |
 | Link evidences from unsealed groups | API error | Only COMPLETED evidences (from CLOSED groups) can be linked |
+| Update dossier after certifying | Error | `dossier_update` only works in `DRAFT` |

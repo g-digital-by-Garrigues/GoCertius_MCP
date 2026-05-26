@@ -79,6 +79,7 @@ Claude will call the `session_info` tool and return your account details. If you
 
 This package includes step-by-step guides as Claude Code slash-commands. After setup, try:
 
+- `/getting-started` — opens a guided workflow
 - `/evidence-lifecycle` — opens a guided workflow
 - `/dossier-lifecycle` — opens a guided workflow
 - `/notification-lifecycle` — opens a guided workflow

@@ -9,9 +9,22 @@ import { evidence_get } from "./tools/evidence_get.js";
 import { evidence_group_create } from "./tools/evidence_group_create.js";
 import { evidence_group_list } from "./tools/evidence_group_list.js";
 import { dossier_create } from "./tools/dossier_create.js";
+import { dossier_update } from "./tools/dossier_update.js";
+import { dossier_certify } from "./tools/dossier_certify.js";
 import { dossier_list } from "./tools/dossier_list.js";
 import { dossier_get } from "./tools/dossier_get.js";
 import { dossier_template_list } from "./tools/dossier_template_list.js";
+import { dossier_preview } from "./tools/dossier_preview.js";
+import { dossier_document_url } from "./tools/dossier_document_url.js";
+import { dossier_package_url } from "./tools/dossier_package_url.js";
+import { dossier_visibility } from "./tools/dossier_visibility.js";
+import { dossier_delete } from "./tools/dossier_delete.js";
+import { dossier_group_certify } from "./tools/dossier_group_certify.js";
+import { dossier_evidence_link } from "./tools/dossier_evidence_link.js";
+import { dossier_evidence_list_to_link } from "./tools/dossier_evidence_list_to_link.js";
+import { dossier_evidence_list } from "./tools/dossier_evidence_list.js";
+import { dossier_evidence_get } from "./tools/dossier_evidence_get.js";
+import { dossier_evidence_delete } from "./tools/dossier_evidence_delete.js";
 import { notification_request_create } from "./tools/notification_request_create.js";
 import { notification_request_send } from "./tools/notification_request_send.js";
 import { notification_request_status } from "./tools/notification_request_status.js";
@@ -25,9 +38,6 @@ import { chat_get } from "./tools/chat_get.js";
 import { chat_invitation_url } from "./tools/chat_invitation_url.js";
 import { chat_certificate_create } from "./tools/chat_certificate_create.js";
 import { chat_certificate_get } from "./tools/chat_certificate_get.js";
-import { dossier_certify } from "./tools/dossier_certify.js";
-import { dossier_group_certify } from "./tools/dossier_group_certify.js";
-import { dossier_evidence_link } from "./tools/dossier_evidence_link.js";
 import { session_login } from "./tools/session_login.js";
 import { session_info } from "./tools/session_info.js";
 
@@ -42,9 +52,22 @@ evidence_get,
 evidence_group_create,
 evidence_group_list,
 dossier_create,
+dossier_update,
+dossier_certify,
 dossier_list,
 dossier_get,
 dossier_template_list,
+dossier_preview,
+dossier_document_url,
+dossier_package_url,
+dossier_visibility,
+dossier_delete,
+dossier_group_certify,
+dossier_evidence_link,
+dossier_evidence_list_to_link,
+dossier_evidence_list,
+dossier_evidence_get,
+dossier_evidence_delete,
 notification_request_create,
 notification_request_send,
 notification_request_status,
@@ -58,9 +81,6 @@ chat_get,
 chat_invitation_url,
 chat_certificate_create,
 chat_certificate_get,
-dossier_certify,
-dossier_group_certify,
-dossier_evidence_link,
 session_login,
 session_info,
   ],

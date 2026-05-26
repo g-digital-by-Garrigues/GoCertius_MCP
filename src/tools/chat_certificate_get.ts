@@ -2,10 +2,10 @@
 // omits caseFileId from path params even though the URL requires it.
 // Paths are relative to the emitted location: dist-repos/gocertius/src/tools/
 
+import { z } from "zod";
 import { createClient, createConfig } from "../api/client/index.js";
 import { showChatCertificateControllerRun } from "../api/sdk.gen.js";
 import { defineTool } from "../core/index.js";
-import { z } from "zod";
 
 export const chat_certificate_get = defineTool({
   name: "chat_certificate_get",
