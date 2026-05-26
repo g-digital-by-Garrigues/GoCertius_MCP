@@ -28,11 +28,18 @@ The notification stays in `DRAFT` until explicitly sent via `notification_reques
 
 3. **Send the notification**
    - `notification_request_send` with `caseFileId` and `notificationRequestId`
-   - Status transitions to `SENT`; GoCertius sends the email to all recipients
+   - Returns immediately — delivery is async; status transitions to `SENT`
 
 4. **Monitor delivery**
    - `notification_request_status` with `caseFileId` and `notificationRequestId`
    - Check `status` and `receiverStats` (total / bounced / valid)
+
+   **Completion detection:**
+
+   | Runtime | Approach |
+   |---|---|
+   | Claude Code / n8n (standard `callTool`) | Poll `notification_request_status` until `status: DELIVERED` |
+   | Task-capable MCP client (experimental task streaming) | Server pushes completion via SSE when notification is delivered — no polling needed |
 
 5. **Generate per-receiver certificates** (once SENT or later)
    - `notification_certificate_get` with a generated UUID `id`, `caseFileId`, `notificationRequestId`, `receiverId`, `language`
