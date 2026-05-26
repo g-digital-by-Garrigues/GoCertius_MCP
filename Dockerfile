@@ -23,6 +23,12 @@ COPY --from=build /app/package.json ./package.json
 
 USER mcpuser
 
+# Force HTTP transport inside the container so the Dockerfile's HEALTHCHECK
+# (which probes http://localhost:8080/healthz) can actually reach a listener.
+# The MCP defaults to stdio (src/core/transport/select.ts) which never binds
+# any port; without this env, Track A Layer 3 of the publish pipeline times
+# out at 60s waiting for the container to become 'healthy'.
+ENV MCP_TRANSPORT=http
 ENV PORT=8080
 ENV NODE_ENV=production
 
