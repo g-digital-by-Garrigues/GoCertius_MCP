@@ -23,7 +23,8 @@ Create certified dossiers (tamper-evident PDFs) that bundle one or more evidence
 3. **Certify**
    - `dossier_certify` with `caseFileId` and `dossierId`
    - Dossier transitions `DRAFT` → `CERTIFYING` → `CERTIFIED`
-   - Certification is asynchronous; verify with `dossier_list`
+   - Certification is asynchronous; poll `dossier_list` until `status: CERTIFIED`
+   - Note: `dossier_certify` has no SSE bridge — always poll regardless of runtime
 
 ## Express flow (single group)
 

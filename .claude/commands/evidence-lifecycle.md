@@ -48,7 +48,14 @@ Case File
 
 4. **Seal the group** — **mandatory step**
    - `evidence_seal` with the group UUID as `id`, `caseFileId`, and `evidencesCount` = exact number of evidences added
-   - The group transitions from `OPEN` → `CLOSED`; evidences show `status: "COMPLETED"`
+   - Returns immediately — the group transitions asynchronously OPEN → CLOSING → CLOSED
+
+   **Completion detection:**
+
+   | Runtime | Approach |
+   |---|---|
+   | Claude Code / n8n (standard `callTool`) | Poll `evidence_group_list` until `status: CLOSED` |
+   | Task-capable MCP client (experimental task streaming) | Server pushes completion via SSE when group closes — no polling needed |
 
 5. **Verify**
    - `evidence_group_list` with `caseFileId` — confirm group `status: "CLOSED"` and `evidenceStats.completed` equals the expected count
