@@ -2,10 +2,10 @@
 // Copied verbatim by the generator (AC3 override mechanism).
 // Paths are relative to the emitted location: dist-repos/gocertius/src/tools/
 
+import { z } from "zod";
 import { createClient, createConfig } from "../api/client/index.js";
 import { showSessionInfoControllerRun } from "../api/sdk.gen.js";
 import { defineTool } from "../core/index.js";
-import { z } from "zod";
 
 export const session_info = defineTool({
   name: "session_info",
@@ -24,9 +24,7 @@ export const session_info = defineTool({
     const email = process.env.MCP_AUTH_EMAIL ?? "";
 
     if (!email) {
-      throw new Error(
-        "MCP_AUTH_EMAIL is not set — cannot determine which session to query.",
-      );
+      throw new Error("MCP_AUTH_EMAIL is not set — cannot determine which session to query.");
     }
 
     // Call the /session-info/{email} endpoint

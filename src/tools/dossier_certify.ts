@@ -2,10 +2,10 @@
 // caseFileId from the path params even though the URL requires it.
 // Paths are relative to the emitted location: dist-repos/gocertius/src/tools/
 
+import { z } from "zod";
 import { createClient, createConfig } from "../api/client/index.js";
 import { certifyDossierControllerRun } from "../api/sdk.gen.js";
 import { defineTool } from "../core/index.js";
-import { z } from "zod";
 
 export const dossier_certify = defineTool({
   name: "dossier_certify",

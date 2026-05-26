@@ -2,10 +2,10 @@
 // omits caseFileId from path params even though the URL requires it.
 // Paths are relative to the emitted location: dist-repos/gocertius/src/tools/
 
+import { z } from "zod";
 import { createClient, createConfig } from "../api/client/index.js";
 import { linkDossierEvidencesControllerRun } from "../api/sdk.gen.js";
 import { defineTool } from "../core/index.js";
-import { z } from "zod";
 
 export const dossier_evidence_link = defineTool({
   name: "dossier_evidence_link",
@@ -18,7 +18,9 @@ export const dossier_evidence_link = defineTool({
   inputSchema: z.object({
     caseFileId: z.string().describe("UUID of the case file that owns the dossier"),
     dossierId: z.string().describe("UUID of the DRAFT dossier to link evidences to"),
-    caseFileToLinkId: z.string().describe("UUID of the case file containing the evidences (often same as caseFileId)"),
+    caseFileToLinkId: z
+      .string()
+      .describe("UUID of the case file containing the evidences (often same as caseFileId)"),
     ids: z.array(z.string().uuid()).describe("UUIDs of the evidence items to link"),
   }),
   annotations: { destructive: false, idempotent: false, requiresUserConfirmation: false },

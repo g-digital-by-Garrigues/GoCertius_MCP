@@ -1492,6 +1492,82 @@ export type UpdateDossierEvidenceControllerRunResponses = {
 
 export type UpdateDossierEvidenceControllerRunResponse = UpdateDossierEvidenceControllerRunResponses[keyof UpdateDossierEvidenceControllerRunResponses];
 
+export type DeleteDossierEvidenceGroupControllerRunData = {
+    body?: never;
+    path: {
+        dossierId: string;
+        caseFileId: string;
+        dossierEvidenceGroupId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/dossiers/{dossierId}/evidence-groups/{dossierEvidenceGroupId}';
+};
+
+export type DeleteDossierEvidenceGroupControllerRunResponses = {
+    204: void;
+};
+
+export type DeleteDossierEvidenceGroupControllerRunResponse = DeleteDossierEvidenceGroupControllerRunResponses[keyof DeleteDossierEvidenceGroupControllerRunResponses];
+
+export type ShowDossierEvidenceGroupControllerRunData = {
+    body?: never;
+    path: {
+        dossierId: string;
+        caseFileId: string;
+        dossierEvidenceGroupId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/dossiers/{dossierId}/evidence-groups/{dossierEvidenceGroupId}';
+};
+
+export type ShowDossierEvidenceGroupControllerRunResponses = {
+    200: {
+        id: string;
+        code: string;
+        name: string;
+        evidencesCount: number;
+        createdAt: string;
+        type: string;
+        revised: boolean;
+        description?: string;
+        evidenceGroup: {
+            id: string;
+            name: string;
+            code: string;
+            evidenceMetadataId?: string;
+        };
+        caseFile: {
+            id: string;
+            name: string;
+            code: string;
+        };
+    };
+};
+
+export type ShowDossierEvidenceGroupControllerRunResponse = ShowDossierEvidenceGroupControllerRunResponses[keyof ShowDossierEvidenceGroupControllerRunResponses];
+
+export type UpdateDossierEvidenceGroupControllerRunData = {
+    body: {
+        id: string;
+        name?: string;
+        description?: string;
+        revised?: boolean;
+    };
+    path: {
+        dossierId: string;
+        caseFileId: string;
+        dossierEvidenceGroupId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/dossiers/{dossierId}/evidence-groups/{dossierEvidenceGroupId}';
+};
+
+export type UpdateDossierEvidenceGroupControllerRunResponses = {
+    204: void;
+};
+
+export type UpdateDossierEvidenceGroupControllerRunResponse = UpdateDossierEvidenceGroupControllerRunResponses[keyof UpdateDossierEvidenceGroupControllerRunResponses];
+
 export type LinkDossierEvidencesControllerRunData = {
     body: {
         ids: Array<string>;
@@ -1508,6 +1584,54 @@ export type LinkDossierEvidencesControllerRunData = {
 export type LinkDossierEvidencesControllerRunResponses = {
     201: unknown;
 };
+
+export type ListDossierEvidenceGroupsControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        dossierId: string;
+    };
+    query?: {
+        filter?: {
+            evidenceGroupIds?: Array<string>;
+            dossierId?: string;
+            search?: string;
+            type?: 'FILE' | 'PHOTO' | 'VIDEO' | 'WEB_PLUGIN';
+            revised?: boolean;
+            originalCreatedAtFrom?: string;
+            originalCreatedAtUntil?: string;
+            id?: string;
+        };
+        order?: {
+            originalCreatedAt?: 'ASC' | 'DESC';
+            createdAt?: 'ASC' | 'DESC';
+        };
+        page?: {
+            number: number;
+            size: number;
+        };
+    };
+    url: '/case-files/{caseFileId}/dossiers/{dossierId}/evidence-groups';
+};
+
+export type ListDossierEvidenceGroupsControllerRunResponses = {
+    200: {
+        data?: Array<{
+            id: string;
+            code: string;
+            name: string;
+            evidencesCount: number;
+            originalCreatedAt: string;
+            type: string;
+            revised: boolean;
+        }>;
+        meta?: {
+            totalElements?: number;
+        };
+    };
+};
+
+export type ListDossierEvidenceGroupsControllerRunResponse = ListDossierEvidenceGroupsControllerRunResponses[keyof ListDossierEvidenceGroupsControllerRunResponses];
 
 export type ListDossierEvidencesControllerRunData = {
     body?: never;
