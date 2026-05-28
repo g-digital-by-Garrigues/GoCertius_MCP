@@ -1,5 +1,6 @@
 // Custom tool: session_info — extends spec response with userId decoded from JWT sub claim.
 // Copied verbatim by the generator (AC3 override mechanism).
+// n8n-http: GET /session-info/{email}
 // Paths are relative to the emitted location: dist-repos/gocertius/src/tools/
 
 import { z } from "zod";

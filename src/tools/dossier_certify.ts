@@ -1,5 +1,6 @@
 // Custom tool: dossier_certify — spec bug workaround: CertifyDossierController_run omits
 // caseFileId from the path params even though the URL requires it.
+// n8n-http: PUT /case-files/{caseFileId}/dossiers/{dossierId}/certify
 // Paths are relative to the emitted location: dist-repos/gocertius/src/tools/
 
 import { z } from "zod";

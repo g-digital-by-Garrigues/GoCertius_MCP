@@ -1,5 +1,6 @@
 // Custom tool: chat_certificate_get — spec bug workaround: ShowChatCertificateController_run
 // omits caseFileId from path params even though the URL requires it.
+// n8n-http: GET /case-files/{caseFileId}/chats/{chatId}/certificates/{id}
 // Paths are relative to the emitted location: dist-repos/gocertius/src/tools/
 
 import { z } from "zod";
