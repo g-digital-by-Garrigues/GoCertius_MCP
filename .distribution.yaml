@@ -109,3 +109,7 @@ tools:
     description: "Performs the session_login operation against the GoCertius API."
   - name: session_info
     description: "Performs the session_info operation against the GoCertius API."
+
+# n8n Verified Community Node connector branding (Epic 11 Story 11.3).
+n8n_connector_display_name: "GoCertius"
+n8n_connector_description: "GoCertius connector for n8n — Digital Trust services from EAD Trust's GoCertius platform for your n8n automations. Manage certified evidence (with sealing and grouping), full dossier lifecycle, certified notifications with receipt tracking, and certified chats with invitation URLs. 26 operations. Maintained by g-digital by Garrigues — an eIDAS-qualified trust services provider."
