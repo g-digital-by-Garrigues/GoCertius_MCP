@@ -12,7 +12,7 @@ const inputSchema = z.object({
 
 export const evidence_group_create = defineTool({
   name: "evidence_group_create",
-  description: "Performs the evidence_group_create operation against the GoCertius API. Review the API documentation for full field details.",
+  description: "Creates an evidence group inside a case file. Requires: case_file_create → caseFileId. Generate a UUID v4 for `id`. Set evidenceType to FILE, PHOTO, VIDEO, or WEB_PLUGIN. Returns evidenceGroupId. One group can contain multiple evidence records.",
   inputSchema,
   annotations: {
     destructive: false,

@@ -14,7 +14,7 @@ const inputSchema = z.object({
 
 export const dossier_evidence_list = defineTool({
   name: "dossier_evidence_list",
-  description: "Performs the dossier_evidence_list operation against the GoCertius API. Review the API documentation for full field details.",
+  description: "Lists all evidence items linked to a dossier. Requires: caseFileId and dossierId.",
   inputSchema,
   annotations: {
     destructive: false,

@@ -12,7 +12,7 @@ const inputSchema = z.object({
 
 export const notification_request_status = defineTool({
   name: "notification_request_status",
-  description: "Performs the notification_request_status operation against the GoCertius API. Review the API documentation for full field details.",
+  description: "Checks the delivery status of a certified notification. Requires: notification_request_create → notificationRequestId, case_file_create → caseFileId. Returns status (CREATING|DRAFT|IN_PROCESS|SENT|PARTIALLY_READ|FULLY_READ|PARTIALLY_ANSWERED|FULLY_ANSWERED). Poll until status is not IN_PROCESS before calling notification_certificate_get.",
   inputSchema,
   annotations: {
     destructive: false,

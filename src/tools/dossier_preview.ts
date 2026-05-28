@@ -12,7 +12,7 @@ const inputSchema = z.object({
 
 export const dossier_preview = defineTool({
   name: "dossier_preview",
-  description: "Performs the dossier_preview operation against the GoCertius API. Review the API documentation for full field details.",
+  description: "Returns an HTML preview URL of a dossier before certification. Requires: caseFileId and dossierId.",
   inputSchema,
   annotations: {
     destructive: false,

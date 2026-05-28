@@ -14,7 +14,7 @@ const inputSchema = z.object({
 
 export const evidence_group_list = defineTool({
   name: "evidence_group_list",
-  description: "Performs the evidence_group_list operation against the GoCertius API. Review the API documentation for full field details.",
+  description: "Lists all evidence groups in a case file with their current status (OPEN, CLOSING, CLOSED). Use to find an existing group or check which groups are ready for sealing. Requires: caseFileId.",
   inputSchema,
   annotations: {
     destructive: false,

@@ -12,7 +12,7 @@ const inputSchema = z.object({
 
 export const dossier_get = defineTool({
   name: "dossier_get",
-  description: "Performs the dossier_get operation against the GoCertius API. Review the API documentation for full field details.",
+  description: "Retrieves the full details of a specific dossier including status, linked evidence, and download URLs. Use to check current state or get certificate download URLs after CERTIFIED. Requires: caseFileId and dossierId.",
   inputSchema,
   annotations: {
     destructive: false,

@@ -12,7 +12,7 @@ const inputSchema = z.object({
 
 export const case_file_get = defineTool({
   name: "case_file_get",
-  description: "Performs the case_file_get operation against the GoCertius API. Review the API documentation for full field details.",
+  description: "Retrieves details of a specific case file. Requires: caseFileId. Use to verify a case file exists before creating evidence groups, dossiers, or notifications.",
   inputSchema,
   annotations: {
     destructive: false,

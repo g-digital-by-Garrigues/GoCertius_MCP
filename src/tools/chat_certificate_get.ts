@@ -5,7 +5,7 @@
 
 import { z } from "zod";
 import { createClient, createConfig } from "../api/client/index.js";
-import { showChatCertificateControllerRun } from "../api/sdk.gen.js";
+import { showChatCertificateControllerRun, showChatCertificateDocumentUrlControllerRun } from "../api/sdk.gen.js";
 import { defineTool } from "../core/index.js";
 
 export const chat_certificate_get = defineTool({
@@ -13,6 +13,7 @@ export const chat_certificate_get = defineTool({
   description:
     "Retrieves a certified chat certificate including its status, message range, and PDF download URL. " +
     "Prerequisites: the certificate must have been created with chat_certificate_create. " +
+    "Returns documentUrl when status is CERTIFIED. " +
     "Example: chat_certificate_get({ caseFileId: '...', chatId: '...', id: '...' })",
   inputSchema: z.object({
     caseFileId: z.string().describe("UUID of the case file that owns the chat"),
@@ -46,6 +47,19 @@ export const chat_certificate_get = defineTool({
       throw new Error(`chat_certificate_get error: ${msg}`);
     }
 
-    return response.data;
+    const cert = response.data as Record<string, unknown>;
+
+    // Fetch the document URL when the certificate is ready
+    if (cert?.status === "CERTIFIED") {
+      const urlResponse = await showChatCertificateDocumentUrlControllerRun({
+        client: sdkClient,
+        path: { caseFileId, chatId, chatCertificateId: id } as any,
+      });
+      if (urlResponse.error === undefined && urlResponse.data) {
+        return { ...cert, documentUrl: (urlResponse.data as Record<string, unknown>).documentUrl };
+      }
+    }
+
+    return cert;
   },
 });

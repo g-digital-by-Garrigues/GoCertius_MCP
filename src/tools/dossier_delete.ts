@@ -12,7 +12,7 @@ const inputSchema = z.object({
 
 export const dossier_delete = defineTool({
   name: "dossier_delete",
-  description: "Performs the dossier_delete operation against the GoCertius API. Review the API documentation for full field details.",
+  description: "Deletes a dossier. Only available while in DRAFT status. Requires: caseFileId and dossierId.",
   inputSchema,
   annotations: {
     destructive: true,

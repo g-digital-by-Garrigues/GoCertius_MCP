@@ -12,7 +12,7 @@ const inputSchema = z.object({
 
 export const chat_get = defineTool({
   name: "chat_get",
-  description: "Performs the chat_get operation against the GoCertius API. Review the API documentation for full field details.",
+  description: "Retrieves details of a certified chat. Requires: case_file_create → caseFileId, chat_create → chatId. Returns status, participants, and registeredAt timestamp.",
   inputSchema,
   annotations: {
     destructive: false,

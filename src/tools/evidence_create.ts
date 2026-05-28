@@ -12,7 +12,7 @@ const inputSchema = z.object({
 
 export const evidence_create = defineTool({
   name: "evidence_create",
-  description: "Performs the evidence_create operation against the GoCertius API. Review the API documentation for full field details.",
+  description: "Registers a new evidence record inside an evidence group. Requires: evidence_group_create → evidenceGroupId, case_file_create → caseFileId. Generate a UUID v4 for `id`. Compute the SHA-256 hex hash of the file BEFORE calling. Returns uploadFileUrl (presigned S3 URL) — PUT the file bytes to that URL before calling evidence_seal. custodyType INTERNAL = GoCertius stores the file; EXTERNAL = only hash is registered.",
   inputSchema,
   annotations: {
     destructive: false,

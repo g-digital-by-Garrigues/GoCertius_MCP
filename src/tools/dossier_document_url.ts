@@ -12,7 +12,7 @@ const inputSchema = z.object({
 
 export const dossier_document_url = defineTool({
   name: "dossier_document_url",
-  description: "Performs the dossier_document_url operation against the GoCertius API. Review the API documentation for full field details.",
+  description: "Returns the download URL for the certified dossier PDF. Requires: dossier_certify (CERTIFIED status), caseFileId, dossierId.",
   inputSchema,
   annotations: {
     destructive: false,

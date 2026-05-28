@@ -12,7 +12,7 @@ const inputSchema = z.object({
 
 export const chat_invitation_url = defineTool({
   name: "chat_invitation_url",
-  description: "Performs the chat_invitation_url operation against the GoCertius API. Review the API documentation for full field details.",
+  description: "Returns the Telegram invitation URL for a certified chat. Requires: chat_create → chatId, case_file_create → caseFileId. Share the returned invitationUrl with participants so they can join the certified channel.",
   inputSchema,
   annotations: {
     destructive: false,
