@@ -14,7 +14,7 @@ const inputSchema = z.object({
 
 export const dossier_update = defineTool({
   name: "dossier_update",
-  description: "Performs the dossier_update operation against the GoCertius API. Review the API documentation for full field details.",
+  description: "Updates the metadata of an existing dossier (name, template fields, expiry). Requires: dossier_create → dossierId, caseFileId. Only available while dossier is in DRAFT status.",
   inputSchema,
   annotations: {
     destructive: false,

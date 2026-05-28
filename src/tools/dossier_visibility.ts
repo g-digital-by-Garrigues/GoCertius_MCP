@@ -14,7 +14,7 @@ const inputSchema = z.object({
 
 export const dossier_visibility = defineTool({
   name: "dossier_visibility",
-  description: "Performs the dossier_visibility operation against the GoCertius API. Review the API documentation for full field details.",
+  description: "Updates the visibility (public/private) of a certified dossier. Requires: dossier_certify (CERTIFIED status), caseFileId, dossierId.",
   inputSchema,
   annotations: {
     destructive: false,

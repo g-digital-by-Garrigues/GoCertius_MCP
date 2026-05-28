@@ -12,7 +12,7 @@ const inputSchema = z.object({
 
 export const evidence_get = defineTool({
   name: "evidence_get",
-  description: "Performs the evidence_get operation against the GoCertius API. Review the API documentation for full field details.",
+  description: "Retrieves a specific evidence record. Requires: evidence_create → evidenceId, evidence_group_create → evidenceGroupId, case_file_create → caseFileId. Returns status (COMPLETED|IN_PROCESS|ERROR), hash, and tspTimestamp when certified.",
   inputSchema,
   annotations: {
     destructive: false,

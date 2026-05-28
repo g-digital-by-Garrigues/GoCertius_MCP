@@ -14,7 +14,7 @@ const inputSchema = z.object({
 
 export const notification_request_create = defineTool({
   name: "notification_request_create",
-  description: "Performs the notification_request_create operation against the GoCertius API. Review the API documentation for full field details.",
+  description: "Creates a certified notification request. Requires: case_file_create → caseFileId. Generate a UUID v4 for `id`. Set language to en_GB or es_ES. Returns notificationRequestId. Add at least one receiver with notification_receiver_add before sending.",
   inputSchema,
   annotations: {
     destructive: false,

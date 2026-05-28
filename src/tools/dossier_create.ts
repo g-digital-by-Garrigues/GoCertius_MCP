@@ -14,7 +14,7 @@ const inputSchema = z.object({
 
 export const dossier_create = defineTool({
   name: "dossier_create",
-  description: "Performs the dossier_create operation against the GoCertius API. Review the API documentation for full field details.",
+  description: "Creates a dossier to aggregate certified evidence groups into a single tamper-evident PDF. Requires: case_file_create → caseFileId. Evidence groups must be in CLOSED status before linking. Generate a UUID v4 string for `id`. Returns dossierId. After creation, link evidence with dossier_evidence_link, then certify with dossier_certify.",
   inputSchema,
   annotations: {
     destructive: false,

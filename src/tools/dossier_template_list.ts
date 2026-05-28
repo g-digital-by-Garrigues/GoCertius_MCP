@@ -12,7 +12,7 @@ const inputSchema = z.object({
 
 export const dossier_template_list = defineTool({
   name: "dossier_template_list",
-  description: "Performs the dossier_template_list operation against the GoCertius API. Review the API documentation for full field details.",
+  description: "Lists available dossier templates. No prerequisites. Returns template IDs and their translations per language. Use the returned id as dossierTemplateId in dossier_create.",
   inputSchema,
   annotations: {
     destructive: false,

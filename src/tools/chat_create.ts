@@ -14,7 +14,7 @@ const inputSchema = z.object({
 
 export const chat_create = defineTool({
   name: "chat_create",
-  description: "Performs the chat_create operation against the GoCertius API. Review the API documentation for full field details.",
+  description: "Creates a certified chat channel (Telegram). Requires: case_file_create → caseFileId. Generate a UUID v4 for `id`. Set service to Telegram. Returns chatId. Use chat_invitation_url to get the shareable Telegram link.",
   inputSchema,
   annotations: {
     destructive: false,
