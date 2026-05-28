@@ -1,5 +1,6 @@
 // Custom tool: session_login — discovers auth type via /session-info/{email},
 // then routes to email/password or Azure AD device flow accordingly.
+// n8n-http: POST /session
 //
 // Azure AD device flow uses a TWO-STEP pattern to avoid elicitation:
 //   Step 1: Call session_login → returns verificationUri + userCode, stores device_code in memory.

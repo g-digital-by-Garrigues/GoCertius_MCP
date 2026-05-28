@@ -1,5 +1,6 @@
 // Custom tool: dossier_evidence_link — spec bug workaround: LinkDossierEvidencesController_run
 // omits caseFileId from path params even though the URL requires it.
+// n8n-http: POST /case-files/{caseFileId}/dossiers/{dossierId}/case-files-to-link/{caseFileToLinkId}/link-evidences
 // Paths are relative to the emitted location: dist-repos/gocertius/src/tools/
 
 import { z } from "zod";
