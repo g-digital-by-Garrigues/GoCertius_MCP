@@ -1,37 +1,37 @@
 {
   "environmentVariables": [
     {
-      "description": "Flow 1: Email / password description: Your GoCertius account email address isSecret: false",
+      "description": "Your GoCertius account email address",
       "isRequired": true,
       "isSecret": false,
       "name": "MCP_AUTH_EMAIL"
     },
     {
-      "description": "description: Your GoCertius account password isSecret: true (See https://www.gocertius.io for credential acquisition.)",
+      "description": "Your GoCertius account password (See https://www.gocertius.io for credential acquisition.)",
       "isRequired": true,
       "isSecret": true,
       "name": "MCP_AUTH_PASSWORD"
     },
     {
-      "description": "description: OpenID Connect client ID isSecret: false",
+      "description": "OpenID Connect client ID",
       "isRequired": true,
       "isSecret": false,
       "name": "MCP_OPENID_CLIENT_ID"
     },
     {
-      "description": "Flow 2: OpenID Connect (alternative to email/password) description: OpenID Connect issuer URL isSecret: false",
+      "description": "OpenID Connect issuer URL",
       "isRequired": true,
       "isSecret": false,
       "name": "MCP_OPENID_ISSUER"
     },
     {
-      "description": "description: OpenID Connect refresh token isSecret: true (See https://www.gocertius.io for credential acquisition.)",
+      "description": "OpenID Connect refresh token (See https://www.gocertius.io for credential acquisition.)",
       "isRequired": true,
       "isSecret": true,
       "name": "MCP_OPENID_REFRESH_TOKEN"
     },
     {
-      "description": "Transport (optional) description: HTTP port when running in hosted (HTTP) mode; ignored in stdio mode isSecret: false",
+      "description": "HTTP port when running in hosted (HTTP) mode; ignored in stdio mode",
       "isRequired": true,
       "isSecret": false,
       "name": "PORT"
