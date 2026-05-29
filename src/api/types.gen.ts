@@ -2737,6 +2737,56 @@ export type CreateMassiveNotificationReceiversControllerRunResponses = {
     201: unknown;
 };
 
+export type ListNotificationDocumentsControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        notificationRequestId: string;
+    };
+    query?: {
+        filter?: {
+            fileName?: string;
+            status?: 'PENDING' | 'READY_TO_SEND';
+            id?: string;
+        };
+        order?: {
+            createdAt?: 'ASC' | 'DESC';
+        };
+        page?: {
+            number: number;
+            size: number;
+        };
+    };
+    url: '/case-files/{caseFileId}/notification-requests/{notificationRequestId}/documents';
+};
+
+export type ListNotificationDocumentsControllerRunResponses = {
+    200: unknown;
+};
+
+export type CreateNotificationDocumentControllerRunData = {
+    body: {
+        id: string;
+        fileName: string;
+        hash: string;
+        fileSize?: number;
+    };
+    path: {
+        caseFileId: string;
+        notificationRequestId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/notification-requests/{notificationRequestId}/documents';
+};
+
+export type CreateNotificationDocumentControllerRunResponses = {
+    201: {
+        url: string;
+    };
+};
+
+export type CreateNotificationDocumentControllerRunResponse = CreateNotificationDocumentControllerRunResponses[keyof CreateNotificationDocumentControllerRunResponses];
+
 export type ListNotificationReceiversControllerRunData = {
     body?: never;
     path: {
@@ -2841,6 +2891,21 @@ export type DeleteInvalidNotificationReceiversControllerRunData = {
 };
 
 export type DeleteInvalidNotificationReceiversControllerRunResponses = {
+    200: unknown;
+};
+
+export type DeleteNotificationDocumentControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        notificationRequestId: string;
+        documentId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/notification-requests/{notificationRequestId}/documents/{documentId}';
+};
+
+export type DeleteNotificationDocumentControllerRunResponses = {
     200: unknown;
 };
 
@@ -3084,6 +3149,25 @@ export type SendNotificationRequestControllerRunData = {
 export type SendNotificationRequestControllerRunResponses = {
     200: unknown;
 };
+
+export type ShowNotificationDocumentDownloadUrlControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        notificationRequestId: string;
+        documentId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/notification-requests/{notificationRequestId}/documents/{documentId}/download-url';
+};
+
+export type ShowNotificationDocumentDownloadUrlControllerRunResponses = {
+    200: {
+        downloadUrl: string;
+    };
+};
+
+export type ShowNotificationDocumentDownloadUrlControllerRunResponse = ShowNotificationDocumentDownloadUrlControllerRunResponses[keyof ShowNotificationDocumentDownloadUrlControllerRunResponses];
 
 export type UpdateNotificationRequestCaseFileIdControllerRunData = {
     body: {

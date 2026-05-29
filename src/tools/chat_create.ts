@@ -14,7 +14,7 @@ const inputSchema = z.object({
 
 export const chat_create = defineTool({
   name: "chat_create",
-  description: "Creates a certified chat channel (Telegram). Requires: case_file_create → caseFileId. Generate a UUID v4 for `id`. Set service to Telegram. Returns chatId. Use chat_invitation_url to get the shareable Telegram link.",
+  description: "Creates a certified chat channel (Telegram). IMPORTANT: Chats can only be created in the user's personal case file (created automatically when the GoCertius account was opened). Do not use a manually created case file — use session_info → case_file_list to find the personal case file (oldest createdAt, owned by the user). Generate a UUID v4 for `id`. Set service to Telegram. Returns chatId. Use chat_invitation_url to get the shareable Telegram link.",
   inputSchema,
   annotations: {
     destructive: false,
@@ -27,7 +27,7 @@ export const chat_create = defineTool({
     const token = ctx.auth?.token ?? "";
     const sdkClient = createClient(
       createConfig({
-        baseUrl: process.env.MCP_API_BASE_URL ?? "",
+        baseUrl: process.env.MCP_API_BASE_URL ?? "https://api-gocertius.gocertius.io",
         headers: {
           Authorization: `Bearer ${token}`,
           ...(ctx.correlationId ? { "X-Correlation-Id": ctx.correlationId } : {}),

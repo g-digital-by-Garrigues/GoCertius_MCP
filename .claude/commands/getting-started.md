@@ -12,6 +12,11 @@ session_login()
 
 Returns `{ authenticated: true, userId: "<uuid>", ... }`. Save `userId` — you need it to list or create case files.
 
+Alternatively, if you already have a valid session and just need `userId` without re-authenticating:
+```
+session_info()  →  { userId: "<uuid>", type: "Password" }
+```
+
 ## Step 1 — Find or create your case file
 
 Every operation in GoCertius requires a `caseFileId`. Case files are workspaces that group all your documents and processes.

@@ -14,7 +14,7 @@ const inputSchema = z.object({
 
 export const case_file_list = defineTool({
   name: "case_file_list",
-  description: "Lists all case files in your GoCertius account. Use to find an existing caseFileId before performing other operations. No required parameters. Returns paginated list with IDs, names, and status.",
+  description: "Lists all case files in your GoCertius account. Pass userId (from session_login or session_info) to scope results to your account. Returns paginated list with IDs, names, and status.",
   inputSchema,
   annotations: {
     destructive: false,
@@ -27,7 +27,7 @@ export const case_file_list = defineTool({
     const token = ctx.auth?.token ?? "";
     const sdkClient = createClient(
       createConfig({
-        baseUrl: process.env.MCP_API_BASE_URL ?? "",
+        baseUrl: process.env.MCP_API_BASE_URL ?? "https://api-gocertius.gocertius.io",
         headers: {
           Authorization: `Bearer ${token}`,
           ...(ctx.correlationId ? { "X-Correlation-Id": ctx.correlationId } : {}),

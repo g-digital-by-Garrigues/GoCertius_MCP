@@ -29,13 +29,13 @@ Create a Telegram-based certified chat session and generate a tamper-evident cer
 
 5. **Create the certificate**
    - `chat_certificate_create` with a generated UUID `id`, `caseFileId`, `chatId`, `name`, `language`
-   - `chatMessagesFrom`: ISO datetime — must be ≥ chat `registeredAt` (use `chat_get` to confirm)
+   - `chatMessagesFrom`: ISO datetime — must be **strictly after** the chat's `registeredAt` (use `chat_get` to confirm; setting it to exactly `registeredAt` or before causes validation error)
    - `chatMessagesTo`: ISO datetime — can be now or any future point
    - The certificate is generated asynchronously but typically certifies within seconds
 
 6. **Retrieve the certificate**
    - `chat_certificate_get` with `caseFileId`, `chatId`, `id` (certificate UUID)
-   - Returns status (`CERTIFIED`), validity period (3 years by default), message range, and metadata
+   - Returns status (`CERTIFIED`), validity period (3 years by default), message range, metadata, and `documentUrl` (PDF download link — only present when `status: CERTIFIED`)
    - Certificate code follows the pattern `<caseFileCode>_CH<n>_D<m>`
 
 ## Example
@@ -60,5 +60,5 @@ chat_certificate_get  caseFileId=<id>  chatId=<uuid>  id=<cert-uuid>  → CERTIF
 | Mistake | Effect | Fix |
 |---|---|---|
 | Wrong case file | Chat created but platform rejects it as invalid | Always use the user's personal case file |
-| `chatMessagesFrom` before `registeredAt` | Validation error `lessThan: registeredAt` | Use `chat_get` to check `registeredAt`, set `from` ≥ that value |
+| `chatMessagesFrom` before or equal to `registeredAt` | Validation error `lessThan: registeredAt` | Use `chat_get` to check `registeredAt`, set `from` strictly after that value |
 | Missing `caseFileId` in `chat_certificate_get` | API returns empty error | Always pass `caseFileId` — it's required even though some clients hide it |

@@ -11,6 +11,10 @@ Create certified dossiers (tamper-evident PDFs) that bundle one or more evidence
 
 ## Full flow (multi-group)
 
+0. **Select a template (optional)**
+   - `dossier_template_list` — returns available templates with their IDs and translations
+   - Pass the returned `id` as `dossierTemplateId` in `dossier_create` if you need a specific template
+
 1. **Create a DRAFT dossier**
    - `dossier_create` with a generated UUID `id`, `caseFileId`, `name`, `language`, `validityFrom`, `validityTo`
    - The dossier starts in `DRAFT` status with 0 evidences
