@@ -34,7 +34,213 @@ Every channel ships the same MCP server contract; the tools and environment conf
 
 ## Installation
 
-<!-- INSTALL_BLOCKS -->
+### Claude Desktop
+
+```json
+{
+  "mcpServers": {
+    "gocertius": {
+      "args": [
+        "-y",
+        "@g-digital/mcp-gocertius"
+      ],
+      "command": "npx",
+      "env": {
+        "MCP_AUTH_EMAIL": "",
+        "MCP_AUTH_PASSWORD": "<PASTE_MCP_AUTH_PASSWORD_HERE>",
+        "MCP_OPENID_CLIENT_ID": "",
+        "MCP_OPENID_ISSUER": "",
+        "MCP_OPENID_REFRESH_TOKEN": "<PASTE_MCP_OPENID_REFRESH_TOKEN_HERE>",
+        "PORT": ""
+      }
+    }
+  }
+}
+```
+
+> Need credentials? See: https://www.gocertius.io
+
+### Claude Code (CLI)
+
+```json
+{
+  "mcpServers": {
+    "gocertius": {
+      "args": [
+        "-y",
+        "@g-digital/mcp-gocertius"
+      ],
+      "command": "npx",
+      "env": {
+        "MCP_AUTH_EMAIL": "",
+        "MCP_AUTH_PASSWORD": "<PASTE_MCP_AUTH_PASSWORD_HERE>",
+        "MCP_OPENID_CLIENT_ID": "",
+        "MCP_OPENID_ISSUER": "",
+        "MCP_OPENID_REFRESH_TOKEN": "<PASTE_MCP_OPENID_REFRESH_TOKEN_HERE>",
+        "PORT": ""
+      }
+    }
+  }
+}
+```
+
+> Need credentials? See: https://www.gocertius.io
+
+### Cursor
+
+```json
+{
+  "mcpServers": {
+    "gocertius": {
+      "args": [
+        "-y",
+        "@g-digital/mcp-gocertius"
+      ],
+      "command": "npx",
+      "env": {
+        "MCP_AUTH_EMAIL": "",
+        "MCP_AUTH_PASSWORD": "<PASTE_MCP_AUTH_PASSWORD_HERE>",
+        "MCP_OPENID_CLIENT_ID": "",
+        "MCP_OPENID_ISSUER": "",
+        "MCP_OPENID_REFRESH_TOKEN": "<PASTE_MCP_OPENID_REFRESH_TOKEN_HERE>",
+        "PORT": ""
+      }
+    }
+  }
+}
+```
+
+> Need credentials? See: https://www.gocertius.io
+
+### Windsurf
+
+```json
+{
+  "mcpServers": {
+    "gocertius": {
+      "args": [
+        "-y",
+        "@g-digital/mcp-gocertius"
+      ],
+      "command": "npx",
+      "env": {
+        "MCP_AUTH_EMAIL": "",
+        "MCP_AUTH_PASSWORD": "<PASTE_MCP_AUTH_PASSWORD_HERE>",
+        "MCP_OPENID_CLIENT_ID": "",
+        "MCP_OPENID_ISSUER": "",
+        "MCP_OPENID_REFRESH_TOKEN": "<PASTE_MCP_OPENID_REFRESH_TOKEN_HERE>",
+        "PORT": ""
+      }
+    }
+  }
+}
+```
+
+> Need credentials? See: https://www.gocertius.io
+
+### Cline
+
+```json
+{
+  "mcpServers": {
+    "gocertius": {
+      "args": [
+        "-y",
+        "@g-digital/mcp-gocertius"
+      ],
+      "command": "npx",
+      "env": {
+        "MCP_AUTH_EMAIL": "",
+        "MCP_AUTH_PASSWORD": "<PASTE_MCP_AUTH_PASSWORD_HERE>",
+        "MCP_OPENID_CLIENT_ID": "",
+        "MCP_OPENID_ISSUER": "",
+        "MCP_OPENID_REFRESH_TOKEN": "<PASTE_MCP_OPENID_REFRESH_TOKEN_HERE>",
+        "PORT": ""
+      }
+    }
+  }
+}
+```
+
+> Need credentials? See: https://www.gocertius.io
+
+### VS Code
+
+```json
+{
+  "servers": {
+    "gocertius": {
+      "args": [
+        "-y",
+        "@g-digital/mcp-gocertius"
+      ],
+      "command": "npx",
+      "env": {
+        "MCP_AUTH_EMAIL": "",
+        "MCP_AUTH_PASSWORD": "<PASTE_MCP_AUTH_PASSWORD_HERE>",
+        "MCP_OPENID_CLIENT_ID": "",
+        "MCP_OPENID_ISSUER": "",
+        "MCP_OPENID_REFRESH_TOKEN": "<PASTE_MCP_OPENID_REFRESH_TOKEN_HERE>",
+        "PORT": ""
+      }
+    }
+  }
+}
+```
+
+> Need credentials? See: https://www.gocertius.io
+
+### JetBrains
+
+```json
+{
+  "mcpServers": {
+    "gocertius": {
+      "args": [
+        "-y",
+        "@g-digital/mcp-gocertius"
+      ],
+      "command": "npx",
+      "env": {
+        "MCP_AUTH_EMAIL": "",
+        "MCP_AUTH_PASSWORD": "<PASTE_MCP_AUTH_PASSWORD_HERE>",
+        "MCP_OPENID_CLIENT_ID": "",
+        "MCP_OPENID_ISSUER": "",
+        "MCP_OPENID_REFRESH_TOKEN": "<PASTE_MCP_OPENID_REFRESH_TOKEN_HERE>",
+        "PORT": ""
+      }
+    }
+  }
+}
+```
+
+> Need credentials? See: https://www.gocertius.io
+
+### Zed
+
+```json
+{
+  "mcpServers": {
+    "gocertius": {
+      "args": [
+        "-y",
+        "@g-digital/mcp-gocertius"
+      ],
+      "command": "npx",
+      "env": {
+        "MCP_AUTH_EMAIL": "",
+        "MCP_AUTH_PASSWORD": "<PASTE_MCP_AUTH_PASSWORD_HERE>",
+        "MCP_OPENID_CLIENT_ID": "",
+        "MCP_OPENID_ISSUER": "",
+        "MCP_OPENID_REFRESH_TOKEN": "<PASTE_MCP_OPENID_REFRESH_TOKEN_HERE>",
+        "PORT": ""
+      }
+    }
+  }
+}
+```
+
+> Need credentials? See: https://www.gocertius.io
 
 ### Claude Desktop / Claude Code
 
@@ -66,7 +272,14 @@ docker run --rm -i \
 
 ## Environment Variables
 
-<!-- ENV_VARS -->
+| Name | Required | Secret | Description |
+| --- | --- | --- | --- |
+| `MCP_AUTH_EMAIL` | Yes | No | Your GoCertius account email address |
+| `MCP_AUTH_PASSWORD` | Yes | Yes | Your GoCertius account password (See https://www.gocertius.io for credential acquisition.) |
+| `MCP_OPENID_CLIENT_ID` | Yes | No | OpenID Connect client ID |
+| `MCP_OPENID_ISSUER` | Yes | No | OpenID Connect issuer URL |
+| `MCP_OPENID_REFRESH_TOKEN` | Yes | Yes | OpenID Connect refresh token (See https://www.gocertius.io for credential acquisition.) |
+| `PORT` | Yes | No | HTTP port when running in hosted (HTTP) mode; ignored in stdio mode |
 
 | Variable | Required | Description |
 |---|---|---|

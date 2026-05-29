@@ -4,7 +4,7 @@
     "gocertius": {
       "args": [
         "-y",
-        "mcp-gocertius"
+        "@g-digital/mcp-gocertius"
       ],
       "command": "npx",
       "env": {

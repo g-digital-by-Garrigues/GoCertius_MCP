@@ -4,24 +4,24 @@ configSchema:
   $schema: https://json-schema.org/draft/2020-12/schema
   properties:
     MCP_AUTH_EMAIL:
-      description: "Flow 1: Email / password description: Your GoCertius account email address isSecret: false"
+      description: Your GoCertius account email address
       type: string
     MCP_AUTH_PASSWORD:
-      description: "description: Your GoCertius account password isSecret: true (See https://www.gocertius.io for credential acquisition.)"
+      description: Your GoCertius account password (See https://www.gocertius.io for credential acquisition.)
       format: password
       type: string
     MCP_OPENID_CLIENT_ID:
-      description: "description: OpenID Connect client ID isSecret: false"
+      description: OpenID Connect client ID
       type: string
     MCP_OPENID_ISSUER:
-      description: "Flow 2: OpenID Connect (alternative to email/password) description: OpenID Connect issuer URL isSecret: false"
+      description: OpenID Connect issuer URL
       type: string
     MCP_OPENID_REFRESH_TOKEN:
-      description: "description: OpenID Connect refresh token isSecret: true (See https://www.gocertius.io for credential acquisition.)"
+      description: OpenID Connect refresh token (See https://www.gocertius.io for credential acquisition.)
       format: password
       type: string
     PORT:
-      description: "Transport (optional) description: HTTP port when running in hosted (HTTP) mode; ignored in stdio mode isSecret: false"
+      description: HTTP port when running in hosted (HTTP) mode; ignored in stdio mode
       type: string
   required:
     - MCP_AUTH_EMAIL
