@@ -242,34 +242,6 @@ Every channel ships the same MCP server contract; the tools and environment conf
 
 > Need credentials? See: https://www.gocertius.io
 
-### Claude Desktop / Claude Code
-
-Add to your `~/.claude.json` or `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "gocertius": {
-      "command": "npx",
-      "args": ["-y", "@g-digital/mcp-gocertius"],
-      "env": {
-        "MCP_AUTH_EMAIL": "your-email@example.com",
-        "MCP_AUTH_PASSWORD": "your-password"
-      }
-    }
-  }
-}
-```
-
-### Docker
-
-```bash
-docker run --rm -i \
-  -e MCP_AUTH_EMAIL=your-email@example.com \
-  -e MCP_AUTH_PASSWORD=your-password \
-  gdigital/gocertius:latest
-```
-
 ## Environment Variables
 
 | Name | Required | Secret | Description |
@@ -280,18 +252,6 @@ docker run --rm -i \
 | `MCP_OPENID_ISSUER` | Yes | No | OpenID Connect issuer URL |
 | `MCP_OPENID_REFRESH_TOKEN` | Yes | Yes | OpenID Connect refresh token (See https://www.gocertius.io for credential acquisition.) |
 | `PORT` | Yes | No | HTTP port when running in hosted (HTTP) mode; ignored in stdio mode |
-
-| Variable | Required | Description |
-|---|---|---|
-| `MCP_AUTH_EMAIL` | One of flow 1 or 2 | Your account email |
-| `MCP_AUTH_PASSWORD` | One of flow 1 or 2 | Your account password |
-| `MCP_OPENID_ISSUER` | One of flow 1 or 2 | OpenID Connect issuer URL |
-| `MCP_OPENID_CLIENT_ID` | One of flow 1 or 2 | OpenID Connect client ID |
-| `MCP_OPENID_REFRESH_TOKEN` | One of flow 1 or 2 | OpenID Connect refresh token |
-| `MCP_AUTH_JWT` | Optional | Pre-seeded JWT (skips interactive login) |
-| `MCP_OTEL_ENABLED` | Optional | Set to `true` to enable OpenTelemetry tracing |
-| `MCP_API_BASE_URL` | Optional | Override upstream API base URL |
-
 ## Bundled Skills
 
 This package ships Claude Code slash-commands under `.claude/commands/`. After install, invoke them from Claude Code:
