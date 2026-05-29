@@ -11,7 +11,7 @@
     "pino": "^10.0.0",
     "zod": "^4.0.0"
   },
-  "description": "MCP server for GoCertius, EAD Trust's Digital Trust platform. Provides certified evidence management, dossier creation, certified notifications, and certified chats via AI agents.",
+  "description": "GoCertius MCP — certified evidence, dossiers, notifications and chats from EAD Trust's platform.",
   "devDependencies": {
     "tsup": "^8.5.0",
     "typescript": "^5.5.0"
@@ -40,5 +40,5 @@
   },
   "type": "module",
   "types": "./dist/server.d.ts",
-  "version": "1.2.0"
+  "version": "1.2.1"
 }
