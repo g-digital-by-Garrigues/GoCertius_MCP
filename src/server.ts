@@ -25,6 +25,7 @@ import { dossier_evidence_list_to_link } from "./tools/dossier_evidence_list_to_
 import { dossier_evidence_list } from "./tools/dossier_evidence_list.js";
 import { dossier_evidence_get } from "./tools/dossier_evidence_get.js";
 import { dossier_evidence_delete } from "./tools/dossier_evidence_delete.js";
+import { notification_document_add } from "./tools/notification_document_add.js";
 import { notification_request_create } from "./tools/notification_request_create.js";
 import { notification_request_send } from "./tools/notification_request_send.js";
 import { notification_request_status } from "./tools/notification_request_status.js";
@@ -68,6 +69,7 @@ dossier_evidence_list_to_link,
 dossier_evidence_list,
 dossier_evidence_get,
 dossier_evidence_delete,
+notification_document_add,
 notification_request_create,
 notification_request_send,
 notification_request_status,

@@ -22,6 +22,7 @@ export { dossier_evidence_list_to_link } from "./dossier_evidence_list_to_link.j
 export { dossier_evidence_list } from "./dossier_evidence_list.js";
 export { dossier_evidence_get } from "./dossier_evidence_get.js";
 export { dossier_evidence_delete } from "./dossier_evidence_delete.js";
+export { notification_document_add } from "./notification_document_add.js";
 export { notification_request_create } from "./notification_request_create.js";
 export { notification_request_send } from "./notification_request_send.js";
 export { notification_request_status } from "./notification_request_status.js";

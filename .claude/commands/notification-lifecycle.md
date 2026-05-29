@@ -38,8 +38,8 @@ The notification stays in `DRAFT` until explicitly sent via `notification_reques
 
    | Runtime | Approach |
    |---|---|
-   | Claude Code / n8n (standard `callTool`) | Poll `notification_request_status` until `status: DELIVERED` |
-   | Task-capable MCP client (experimental task streaming) | Server pushes completion via SSE when notification is delivered — no polling needed |
+   | Claude Code / n8n (standard `callTool`) | Poll `notification_request_status` until `status: SENT` or beyond (`PARTIALLY_READ`, `FULLY_READ`, `PARTIALLY_ANSWERED`, `FULLY_ANSWERED`) |
+   | Task-capable MCP client (experimental task streaming) | Server pushes completion via SSE when notification is sent — no polling needed |
 
 5. **Generate per-receiver certificates** (once SENT or later)
    - `notification_certificate_get` with a generated UUID `id`, `caseFileId`, `notificationRequestId`, `receiverId`, `language`

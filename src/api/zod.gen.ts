@@ -2172,6 +2172,42 @@ export const zCreateMassiveNotificationReceiversControllerRunPath = z.object({
     notificationRequestId: z.string()
 });
 
+export const zListNotificationDocumentsControllerRunPath = z.object({
+    caseFileId: z.string(),
+    notificationRequestId: z.string()
+});
+
+export const zListNotificationDocumentsControllerRunQuery = z.object({
+    filter: z.object({
+        fileName: z.string().optional(),
+        status: z.enum(['PENDING', 'READY_TO_SEND']).optional(),
+        id: z.string().optional()
+    }).optional(),
+    order: z.object({
+        createdAt: z.enum(['ASC', 'DESC']).optional()
+    }).optional(),
+    page: z.object({
+        number: z.number().gte(1).default(1),
+        size: z.number().gte(0).lte(100).default(20)
+    }).optional()
+});
+
+export const zCreateNotificationDocumentControllerRunBody = z.object({
+    id: z.uuid(),
+    fileName: z.string(),
+    hash: z.string(),
+    fileSize: z.number().optional()
+});
+
+export const zCreateNotificationDocumentControllerRunPath = z.object({
+    caseFileId: z.string(),
+    notificationRequestId: z.string()
+});
+
+export const zCreateNotificationDocumentControllerRunResponse = z.object({
+    url: z.string()
+});
+
 export const zListNotificationReceiversControllerRunPath = z.object({
     caseFileId: z.string(),
     notificationRequestId: z.string()
@@ -2262,6 +2298,12 @@ export const zCreateNotificationRequestControllerRunPath = z.object({
 export const zDeleteInvalidNotificationReceiversControllerRunPath = z.object({
     caseFileId: z.string(),
     notificationRequestId: z.string()
+});
+
+export const zDeleteNotificationDocumentControllerRunPath = z.object({
+    caseFileId: z.string(),
+    notificationRequestId: z.string(),
+    documentId: z.string()
 });
 
 export const zDeleteNotificationReceiverControllerRunPath = z.object({
@@ -2478,6 +2520,16 @@ export const zProcessNotificationsCallbackControllerRunResponse = z.void();
 export const zSendNotificationRequestControllerRunPath = z.object({
     caseFileId: z.string(),
     notificationRequestId: z.string()
+});
+
+export const zShowNotificationDocumentDownloadUrlControllerRunPath = z.object({
+    caseFileId: z.string(),
+    notificationRequestId: z.string(),
+    documentId: z.string()
+});
+
+export const zShowNotificationDocumentDownloadUrlControllerRunResponse = z.object({
+    downloadUrl: z.string()
 });
 
 export const zUpdateNotificationRequestCaseFileIdControllerRunBody = z.object({

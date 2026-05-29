@@ -12,7 +12,7 @@ const inputSchema = z.object({
 
 export const notification_request_status = defineTool({
   name: "notification_request_status",
-  description: "Checks the delivery status of a certified notification. Requires: notification_request_create → notificationRequestId, case_file_create → caseFileId. Returns status (CREATING|DRAFT|IN_PROCESS|SENT|PARTIALLY_READ|FULLY_READ|PARTIALLY_ANSWERED|FULLY_ANSWERED). Poll until status is not IN_PROCESS before calling notification_certificate_get.",
+  description: "Checks the delivery status of a certified notification. Requires: notificationRequestId, caseFileId. Returns status (CREATING|DRAFT|IN_PROCESS|SENT|PARTIALLY_READ|FULLY_READ|PARTIALLY_ANSWERED|FULLY_ANSWERED). Poll until status is SENT or beyond. Do not call notification_certificate_get while status is CREATING, DRAFT, or IN_PROCESS.",
   inputSchema,
   annotations: {
     destructive: false,
@@ -25,7 +25,7 @@ export const notification_request_status = defineTool({
     const token = ctx.auth?.token ?? "";
     const sdkClient = createClient(
       createConfig({
-        baseUrl: process.env.MCP_API_BASE_URL ?? "",
+        baseUrl: process.env.MCP_API_BASE_URL ?? "https://api-gocertius.gocertius.io",
         headers: {
           Authorization: `Bearer ${token}`,
           ...(ctx.correlationId ? { "X-Correlation-Id": ctx.correlationId } : {}),

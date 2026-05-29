@@ -12,7 +12,7 @@ const inputSchema = z.object({
 
 export const dossier_delete = defineTool({
   name: "dossier_delete",
-  description: "Deletes a dossier. Only available while in DRAFT status. Requires: caseFileId and dossierId.",
+  description: "Deletes a dossier. Available in DRAFT status (to discard before certification) or in CERTIFIED status (to permanently remove the certified dossier). Irreversible. Requires: caseFileId and dossierId.",
   inputSchema,
   annotations: {
     destructive: true,
@@ -25,7 +25,7 @@ export const dossier_delete = defineTool({
     const token = ctx.auth?.token ?? "";
     const sdkClient = createClient(
       createConfig({
-        baseUrl: process.env.MCP_API_BASE_URL ?? "",
+        baseUrl: process.env.MCP_API_BASE_URL ?? "https://api-gocertius.gocertius.io",
         headers: {
           Authorization: `Bearer ${token}`,
           ...(ctx.correlationId ? { "X-Correlation-Id": ctx.correlationId } : {}),
