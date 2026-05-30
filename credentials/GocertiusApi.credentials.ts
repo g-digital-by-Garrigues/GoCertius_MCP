@@ -60,8 +60,13 @@ export class GocertiusApi implements ICredentialType {
   test: ICredentialTestRequest = {
     request: {
       baseURL: '={{$credentials.baseUrl}}',
-      url: '=/session-info/{{$credentials.MCP_AUTH_EMAIL}}',
-      method: 'GET',
+      url: '/session',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: {
+        email: '={{$credentials.MCP_AUTH_EMAIL}}',
+        password: '={{$credentials.MCP_AUTH_PASSWORD}}',
+      },
     },
   };
 }
