@@ -1,4 +1,8 @@
-import { ICredentialType, INodeProperties } from 'n8n-workflow';
+import {
+  ICredentialTestRequest,
+  ICredentialType,
+  INodeProperties,
+} from 'n8n-workflow';
 
 export class GocertiusApi implements ICredentialType {
   name = 'gocertiusApi';
@@ -52,4 +56,12 @@ export class GocertiusApi implements ICredentialType {
       description: 'OpenID Connect refresh token (alternative to email/password auth).',
     },
   ];
+
+  test: ICredentialTestRequest = {
+    request: {
+      baseURL: '={{$credentials.baseUrl}}',
+      url: '=/session-info/{{$credentials.MCP_AUTH_EMAIL}}',
+      method: 'GET',
+    },
+  };
 }
