@@ -1,7 +1,7 @@
 // Custom tool: evidence_create — adds optional fileUrl parameter for automatic S3 upload.
 // When fileUrl is provided and custodyType is INTERNAL, the tool downloads the file and
 // uploads it to the presigned S3 URL, eliminating the need for a separate PUT call.
-// n8n-http: POST /case-files/{caseFileId}/evidence-groups/{evidenceGroupId}/evidences
+// n8n-http: POST /evidences
 // Paths are relative to the emitted location: dist-repos/gocertius/src/tools/
 
 import { createHash } from "node:crypto";
