@@ -2,7 +2,7 @@
   "node": "@g-digital/n8n-nodes-gocertius",
   "nodeVersion": "1.0",
   "codexVersion": "1.0",
-  "categories": ["AI"],
+  "categories": ["Utility"],
   "resources": {
     "credentialDocumentation": [
       {
