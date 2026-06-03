@@ -1,21 +1,26 @@
-FROM node:22-slim AS base
+FROM node:22-alpine AS base
 WORKDIR /app
-
-FROM base AS deps
-COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
 
 FROM base AS build
-COPY . .
+COPY package.json package-lock.json ./
 RUN npm ci
+COPY . .
 RUN npm run build
 
-FROM node:22-slim AS runner
+FROM base AS deps
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+FROM node:22-alpine AS runner
 WORKDIR /app
 
-# Create non-root user
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 mcpuser
+# Patch OS packages to fix CVEs disclosed after the base image was built.
+RUN apk update && apk upgrade --no-cache
+
+# Update bundled npm so its transitive deps are at patched versions.
+RUN npm install -g npm@latest && npm cache clean --force
+
+RUN addgroup -S nodejs && adduser -S mcpuser -G nodejs
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
@@ -25,9 +30,6 @@ USER mcpuser
 
 # Force HTTP transport inside the container so the Dockerfile's HEALTHCHECK
 # (which probes http://localhost:8080/healthz) can actually reach a listener.
-# The MCP defaults to stdio (src/core/transport/select.ts) which never binds
-# any port; without this env, Track A Layer 3 of the publish pipeline times
-# out at 60s waiting for the container to become 'healthy'.
 ENV MCP_TRANSPORT=http
 ENV PORT=8080
 ENV NODE_ENV=production

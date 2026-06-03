@@ -1,0 +1,18 @@
+{
+  "node": "@g-digital/n8n-nodes-gocertius",
+  "nodeVersion": "1.0",
+  "codexVersion": "1.0",
+  "categories": ["AI"],
+  "resources": {
+    "credentialDocumentation": [
+      {
+        "url": "https://github.com/g-digital-by-Garrigues/GoCertius_MCP?tab=readme-ov-file#credentials"
+      }
+    ],
+    "primaryDocumentation": [
+      {
+        "url": "https://github.com/g-digital-by-Garrigues/GoCertius_MCP?tab=readme-ov-file"
+      }
+    ]
+  }
+}
