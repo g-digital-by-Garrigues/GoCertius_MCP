@@ -1,6 +1,6 @@
 # Gocertius — n8n connector
 
-> Send and certify evidence, dossiers, notifications, and chats via the GoCertius platform.
+> Manage certified evidence, dossiers, notifications, and chats on the GoCertius platform.
 
 Install this connector and use Gocertius operations as steps inside any n8n workflow. Each operation maps to one capability of the underlying Gocertius platform.
 
@@ -35,45 +35,45 @@ See the full lifecycle guide at: https://github.com/g-digital-by-Garrigues/MCP_M
 
 | Operation | Description |
 |---|---|
-| `evidence_create` | Registers a new evidence record inside an evidence group. |
-| `evidence_list` | Lists all evidence records within a specific evidence group. |
-| `evidence_seal` | Closes an evidence group and triggers certified timestamping. |
-| `evidence_get` | Retrieves details and certification status of a specific evidence record. |
-| `evidence_group_create` | Creates a new evidence group inside an existing case file. |
-| `evidence_group_list` | Lists all evidence groups in a case file with their current status. |
-| `dossier_create` | Creates a dossier to aggregate certified evidence groups into a PDF. |
-| `dossier_update` | Updates metadata of a dossier that is still in draft status. |
-| `dossier_certify` | Certifies a draft dossier, locking evidence and generating a tamper-evident PDF. |
-| `dossier_list` | Lists all dossiers in a case file with their status and metadata. |
-| `dossier_get` | Retrieves full details of a dossier, including status and download URLs. |
-| `dossier_template_list` | Lists all available dossier templates with their IDs and translations. |
-| `dossier_preview` | Returns an HTML preview URL for a dossier before certification. |
-| `dossier_document_url` | Returns the download URL for a certified dossier PDF. |
+| `evidence_create` | Registers a new evidence record inside an evidence group, optionally uploading the file automatically. |
+| `evidence_list` | Returns all evidence records within a specified evidence group, paginated. |
+| `evidence_seal` | Closes an evidence group to new additions and triggers certified timestamping. |
+| `evidence_get` | Retrieves a single evidence record with its certification status, hash, and timestamp. |
+| `evidence_group_create` | Creates a new evidence group inside a case file to hold related evidence records. |
+| `evidence_group_list` | Returns all evidence groups in a case file with their current status. |
+| `dossier_create` | Creates a new dossier to aggregate certified evidence groups into a tamper-evident PDF. |
+| `dossier_update` | Updates the metadata of a dossier that is still in DRAFT status. |
+| `dossier_certify` | Locks a DRAFT dossier and generates a tamper-evident certified PDF from its evidence. |
+| `dossier_list` | Returns all dossiers in a case file with their status and metadata, paginated. |
+| `dossier_get` | Retrieves full details of a dossier including status, linked evidence, and download URLs. |
+| `dossier_template_list` | Returns all available dossier templates with their IDs and language translations. |
+| `dossier_preview` | Returns an HTML preview URL for a dossier before it is certified. |
+| `dossier_document_url` | Returns the download URL for the certified dossier PDF. |
 | `dossier_package_url` | Returns the download URL for the full certified dossier package including evidence files. |
 | `dossier_visibility` | Updates the public or private visibility of a certified dossier. |
-| `dossier_delete` | Permanently deletes a dossier in draft or certified status. |
+| `dossier_delete` | Permanently deletes a dossier in DRAFT or CERTIFIED status; this action is irreversible. |
 | `dossier_group_certify` | Creates and certifies a dossier from a single sealed evidence group in one step. |
-| `dossier_evidence_link` | Links specific evidence items to a draft dossier before certification. |
-| `dossier_evidence_list_to_link` | Lists evidence items available to be linked to a dossier. |
-| `dossier_evidence_list` | Lists all evidence items currently linked to a dossier. |
-| `dossier_evidence_get` | Retrieves details of a specific evidence item linked to a dossier. |
-| `dossier_evidence_delete` | Removes an evidence item from a dossier while it is in draft status. |
-| `notification_document_add` | Attaches a document to an existing certified notification request. |
-| `notification_request_create` | Creates a certified notification request with HTML content for one or more recipients. |
-| `notification_request_send` | Triggers delivery of a certified notification to all added recipients. |
+| `dossier_evidence_link` | Links specific evidence items from a case file to a DRAFT dossier. |
+| `dossier_evidence_list_to_link` | Returns evidence items from closed groups that are available to link to a dossier. |
+| `dossier_evidence_list` | Returns all evidence items currently linked to a specific dossier. |
+| `dossier_evidence_get` | Retrieves details of a single evidence item linked to a dossier. |
+| `dossier_evidence_delete` | Removes an evidence item from a DRAFT dossier. |
+| `notification_document_add` | Attaches a document to a certified notification request. |
+| `notification_request_create` | Creates a certified notification request with HTML content ready for recipient delivery. |
+| `notification_request_send` | Triggers delivery of a certified notification to all added recipients asynchronously. |
 | `notification_request_status` | Returns the current delivery status of a certified notification request. |
-| `notification_receiver_add` | Adds a recipient to a certified notification request before sending. |
-| `notification_certificate_get` | Generates a PDF delivery certificate for a specific notification recipient. |
-| `case_file_create` | Creates a top-level case file container for all GoCertius operations. |
-| `case_file_list` | Lists all case files in your GoCertius account with their status. |
-| `case_file_get` | Retrieves details of a specific case file by its ID. |
-| `chat_create` | Creates a certified Telegram chat channel linked to a personal case file. |
-| `chat_get` | Retrieves status and participant details of a certified chat channel. |
-| `chat_invitation_url` | Returns the Telegram invitation URL for participants to join a certified chat. |
-| `chat_certificate_create` | Creates a certificate for a range of messages from a certified chat channel. |
-| `chat_certificate_get` | Retrieves a chat certificate status and PDF download URL after certification. |
-| `session_login` | Authenticates with GoCertius using password or OpenID and returns a session. |
-| `session_info` | Returns the authenticated user's session details including userId and session type. |
+| `notification_receiver_add` | Adds a recipient to a notification request before it is sent. |
+| `notification_certificate_get` | Generates a PDF certificate proving delivery and reading of a notification for one recipient. |
+| `case_file_create` | Creates a top-level case file container required before any evidence, dossier, or notification operation. |
+| `case_file_list` | Returns all case files in your GoCertius account, paginated. |
+| `case_file_get` | Retrieves details of a specific case file to verify it exists before further operations. |
+| `chat_create` | Creates a certified Telegram chat channel in your personal GoCertius case file. |
+| `chat_get` | Retrieves status, participants, and registration details of a certified chat channel. |
+| `chat_invitation_url` | Returns the Telegram invitation URL so participants can join a certified chat channel. |
+| `chat_certificate_create` | Creates a certificate covering a date range of messages from a certified Telegram chat. |
+| `chat_certificate_get` | Retrieves a chat certificate's status and PDF download URL after certification completes. |
+| `session_login` | Authenticates with GoCertius using password or Azure AD OpenId device flow. |
+| `session_info` | Returns the authenticated user's session details including userId and authentication type. |
 
 ## Credentials
 
@@ -83,11 +83,7 @@ This node requires a "Gocertius API" credential with the following fields:
 |---|---|---|
 | `API Base URL` | Base URL of the Gocertius REST API. Production default: `https://api-gocertius.gocertius.io` Leave blank only if you know your environment uses a different endpoint. | no |
 | `MCP_AUTH_EMAIL` | Enter the email address associated with your GoCertius account. | no |
-| `MCP_AUTH_PASSWORD` | Enter the password for your GoCertius account, found at gocertius.io. | yes |
-| `MCP_OPENID_CLIENT_ID` | Enter the OpenID Connect client ID provided by your identity provider. | no |
-| `MCP_OPENID_ISSUER` | Enter the OpenID Connect issuer URL provided by your identity provider. | no |
-| `MCP_OPENID_REFRESH_TOKEN` | Enter the OpenID Connect refresh token issued by your identity provider. | yes |
-| `PORT` | Enter the port number to use when running the MCP server in HTTP mode. | no |
+| `MCP_AUTH_PASSWORD` | Enter the password for your GoCertius account, available at gocertius.io. | yes |
 > **Need credentials?** Sign up or log in at [https://www.gocertius.io](https://www.gocertius.io).
 
 ## Use as an AI Agent tool

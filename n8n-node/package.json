@@ -1,7 +1,7 @@
 {
   "name": "@g-digital/n8n-nodes-gocertius",
-  "version": "1.2.19",
-  "description": "Send and certify evidence, dossiers, notifications, and chats via the GoCertius platform.",
+  "version": "1.2.20",
+  "description": "Manage certified evidence, dossiers, notifications, and chats on the GoCertius platform.",
   "license": "MIT",
   "homepage": "https://github.com/g-digital-by-Garrigues/GoCertius_MCP",
   "author": { "name": "g-digital by Garrigues", "email": "g-digital@garrigues.com" },
