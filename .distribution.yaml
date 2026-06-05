@@ -10,6 +10,7 @@ npm_scope: "@g-digital"
 npm_package_name: "@g-digital/mcp-gocertius"
 docker_image_name: gdigital/gocertius
 n8n_adapter_target_name: n8n-nodes-gocertius
+n8n_connector_display_name: "GoCertius"
 
 # Branding & metadata
 license: MIT
