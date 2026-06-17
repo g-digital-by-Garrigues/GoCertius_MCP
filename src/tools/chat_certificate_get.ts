@@ -5,7 +5,10 @@
 
 import { z } from "zod";
 import { createClient, createConfig } from "../api/client/index.js";
-import { showChatCertificateControllerRun, showChatCertificateDocumentUrlControllerRun } from "../api/sdk.gen.js";
+import {
+  showChatCertificateControllerRun,
+  showChatCertificateDocumentUrlControllerRun,
+} from "../api/sdk.gen.js";
 import { defineTool } from "../core/index.js";
 
 export const chat_certificate_get = defineTool({
@@ -20,7 +23,13 @@ export const chat_certificate_get = defineTool({
     chatId: z.string().describe("UUID of the chat"),
     id: z.string().describe("UUID of the certificate to retrieve"),
   }),
-  annotations: { destructive: false, idempotent: true, requiresUserConfirmation: false },
+  annotations: {
+    title: "Chat Certificate Get",
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false,
+  },
   pollable: false,
   idempotencyWindowSeconds: 30,
   async execute(input, ctx) {

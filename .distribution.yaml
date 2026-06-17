@@ -31,14 +31,14 @@ bundled_skills:
   - dossier-lifecycle.md
   - notification-lifecycle.md
   - chat-lifecycle.md
-# Static tool inventory (39 tools — must equal toolsAllowList.length)
+# Static tool inventory (40 tools — must equal toolsAllowList.length)
 tools:
   - name: evidence_create
-    description: "Registers a new evidence record inside an evidence group. Requires: evidence_group_create → evidenceGroupId, case_file_create → caseFileId. Generate a UUID v4 for &#x60;id&#x60;. Compute the SHA-256 hex hash of the file BEFORE calling. Returns uploadFileUrl (presigned S3 URL) — PUT the file bytes to that URL before calling evidence_seal. custodyType INTERNAL &#x3D; GoCertius stores the file; EXTERNAL &#x3D; only hash is registered."
+    description: "Registers a NEW evidence record inside an evidence group. Requires: evidence_group_create → evidenceGroupId, case_file_create → caseFileId. Generate a UUID v4 for &#x60;id&#x60; and compute the SHA-256 hex hash BEFORE calling. INTERNAL flow: call with custodyType INTERNAL; the response returns uploadFileUrl (presigned S3 URL). PUT the exact file bytes to uploadFileUrl, then verify with evidence_get/evidence_list, and ONLY THEN call evidence_seal. Do not seal while any INTERNAL evidence file is not uploaded. EXTERNAL flow: use custodyType EXTERNAL only for intentional hash-only evidence; each evidence still needs a fresh UUID. If a previous evidence create/upload failed and outcome is unknown, verify with evidence_list before retrying and do not reuse the same id unless you confirmed it was not persisted. WARNING: the API sometimes returns {code:&#x27;EvidenceCreateError&#x27;} even when the evidence was successfully persisted."
   - name: evidence_list
     description: "Lists all evidence records in a specific evidence group. Use to review uploaded documents before sealing the group, or to find a specific evidenceId. Requires: caseFileId and evidenceGroupId. Returns paginated list with IDs, titles, status, and timestamps."
   - name: evidence_seal
-    description: "Seals an evidence group and triggers qualified TSP timestamping. Requires: evidence_create records uploaded to S3, case_file_create → caseFileId, evidence_group_create → evidenceGroupId. Set evidencesCount to the number of evidences in the group. ASYNC: after calling, poll evidence_group_list until the group status changes to CLOSED before linking to a dossier or generating certificates."
+    description: "Seals an evidence group and triggers qualified TSP timestamping. Requires: all INTERNAL evidence records in the group have already been uploaded to their uploadFileUrl and verified with evidence_get/evidence_list. Requires case_file_create → caseFileId and evidence_group_create → evidenceGroupId. Set evidencesCount to the number of evidences in the group. ASYNC: after calling, poll evidence_group_list until the group status changes to CLOSED before linking to a dossier or generating certificates."
   - name: evidence_get
     description: "Retrieves a specific evidence record. Requires: evidence_create → evidenceId, evidence_group_create → evidenceGroupId, case_file_create → caseFileId. Returns status (COMPLETED|IN_PROCESS|ERROR), hash, and tspTimestamp when certified."
   - name: evidence_group_create
@@ -68,9 +68,9 @@ tools:
   - name: dossier_delete
     description: "Deletes a dossier. Available in DRAFT status (to discard before certification) or in CERTIFIED status (to permanently remove the certified dossier). Irreversible. Requires: caseFileId and dossierId."
   - name: dossier_group_certify
-    description: "Creates AND certifies a dossier from a single sealed evidence group in one call (express path). Requires: evidence_seal (CLOSED status), case_file_create → caseFileId, evidence_group_create → evidenceGroupId. Generate a UUID v4 string for &#x60;id&#x60;. Use when you have exactly one sealed evidence group and don&#x27;t need multi-group aggregation. Returns dossierId with CERTIFYING status → poll until CERTIFIED."
+    description: "Creates AND certifies a dossier from a single sealed evidence group in one call (express path). Requires: evidence_seal (CLOSED status), case_file_create → caseFileId, evidence_group_create → evidenceGroupId. Generate a UUID v4 string for &#x60;id&#x60;. Use when you have exactly one sealed evidence group and don&#x27;t need multi-group aggregation. Returns dossierId immediately with CERTIFYING status → poll until CERTIFIED."
   - name: dossier_evidence_link
-    description: "Links evidence items from a sealed group to a dossier. Requires: dossier_create → dossierId, evidence_seal (CLOSED), case_file_create → caseFileId. Pass the ids array of evidence UUIDs. Can be called multiple times for evidence from different case files."
+    description: "Links evidence records from a sealed evidence group to a dossier. Requires: dossier_create → dossierId, evidence_seal (CLOSED status), case_file_create → caseFileId. Evidence groups MUST be in CLOSED status. Pass the ids array of evidence UUIDs to link. Can be called multiple times for evidence from different case files."
   - name: dossier_evidence_list_to_link
     description: "Lists evidence items that are available to be linked to a dossier (CLOSED groups not yet linked). Requires: caseFileId and dossierId."
   - name: dossier_evidence_list
@@ -90,7 +90,7 @@ tools:
   - name: notification_receiver_add
     description: "Adds a recipient to a notification request. Requires: notification_request_create → notificationRequestId, case_file_create → caseFileId. The &#x60;id&#x60; can be a UUID v4 or custom string (e.g. your internal user ID). Returns receiverId — save it for notification_certificate_get. Add all receivers before calling notification_request_send."
   - name: notification_certificate_get
-    description: "Generates a PDF certificate for a specific receiver proving delivery and/or reading of the notification. Requires: notification_request_send (delivered), notification_receiver_add → receiverId, notification_request_create → notificationRequestId, case_file_create → caseFileId. Generate a UUID v4 for &#x60;id&#x60;. Returns pdfUrl when status reaches CERTIFIED."
+    description: "Generates or retrieves a PDF certificate for a specific receiver proving delivery and/or reading of the notification. Requires: notification_request_send, notification_receiver_add → receiverId, notification_request_create → notificationRequestId, case_file_create → caseFileId. Generate a UUID v4 for &#x60;id&#x60; the first time you request a certificate for that receiver and reuse that same id when polling. Call only after notification_request_status is SENT or beyond. The first call may return {} while the certificate is being generated; poll/re-call notification_certificate_get until the response includes a pdfUrl/documentUrl or a CERTIFIED/final status. If the backend returns Forbidden/Unexpected at SENT, do not keep hammering the certificate endpoint: poll notification_request_status until READ/ANSWERED or verify in the UI, then retry with the same certificate id. For ACCEPTED_OR_NOT notifications, call once after a certifiable delivery/read state for an intermediate certificate and again after PARTIALLY_ANSWERED/FULLY_ANSWERED for the final answer certificate."
   - name: case_file_create
     description: "Creates a new case file — the top-level container for all related operations (evidence, notifications, dossiers, chats). Call this first before any other operation. Generate a UUID v4 for &#x60;id&#x60;. Returns caseFileId needed for all subsequent calls."
   - name: case_file_list
@@ -98,16 +98,18 @@ tools:
   - name: case_file_get
     description: "Retrieves details of a specific case file. Requires: caseFileId. Use to verify a case file exists before creating evidence groups, dossiers, or notifications."
   - name: chat_create
-    description: "Creates a certified chat channel (Telegram). IMPORTANT: Chats can only be created in the user&#x27;s personal case file (created automatically when the GoCertius account was opened). Do not use a manually created case file — use session_info → case_file_list to find the personal case file (oldest createdAt, owned by the user). Generate a UUID v4 for &#x60;id&#x60;. Set service to Telegram. Returns chatId. Use chat_invitation_url to get the shareable Telegram link."
+    description: "Creates a certified chat channel (Telegram). IMPORTANT: Chats can only be created in the user&#x27;s personal case file (created automatically when the GoCertius account was opened). Do not use a manually created case file — use session_info → case_file_list to find the personal case file (oldest createdAt, owned by the user). Generate a UUID v4 for &#x60;id&#x60;. Set service to Telegram. Returns immediately and the chat may start in status &#x60;creating&#x60;; call chat_get and wait until it is registered/active before requesting the invitation URL or certificates."
   - name: chat_get
-    description: "Retrieves details of a certified chat. Requires: case_file_create → caseFileId, chat_create → chatId. Returns status, participants, and registeredAt timestamp."
+    description: "Retrieves details of a certified chat. Requires: personal caseFileId and chat_create → chatId. Returns status, participants, and registeredAt timestamp. After chat_create, poll chat_get until status is active/registered and registeredAt is present; createdAt is not enough for certificate creation."
   - name: chat_invitation_url
-    description: "Returns the Telegram invitation URL for a certified chat. Requires: chat_create → chatId, case_file_create → caseFileId. Share the returned invitationUrl with participants so they can join the certified channel."
+    description: "Returns the Telegram invitation URL for a certified chat. Requires: chat_create → chatId and the personal caseFileId. Do not call while chat_get still shows status &#x60;creating&#x60;; wait until the chat is registered/active, otherwise the API can answer Chat not found. Share the returned invitationUrl with participants so they can join the certified channel."
   - name: chat_certificate_create
-    description: "Creates a certificate of a range of messages from a certified chat. Requires: chat_create → chatId, case_file_create → caseFileId, messages already present in the Telegram channel. Generate a UUID v4 for &#x60;id&#x60;. Specify chatMessagesFrom and chatMessagesTo as ISO timestamps (chatMessagesFrom must be AFTER the chat registeredAt timestamp). ASYNC: poll chat_certificate_get until status &#x3D;&#x3D;&#x3D; CERTIFIED."
+    description: "Creates a certificate of a range of messages from a certified chat. Requires: chat_create → chatId, personal caseFileId, chat_get → registeredAt, and messages already present in the Telegram channel. Generate a UUID v4 for &#x60;id&#x60;. Do not use createdAt as a substitute for registeredAt; if registeredAt is missing, the chat is not ready to certify. Specify chatMessagesFrom and chatMessagesTo as ISO timestamps (chatMessagesFrom must be AFTER registeredAt). ASYNC: poll chat_certificate_get until status &#x3D;&#x3D;&#x3D; CERTIFIED."
   - name: chat_certificate_get
     description: "Retrieves the certificate of a certified chat. Requires: chat_certificate_create → certificate id, chat_create → chatId, case_file_create → caseFileId. Returns documentUrl when status reaches CERTIFIED. Poll until CERTIFIED before using documentUrl."
   - name: session_login
-    description: "Authenticates with GoCertius using email and password (or Azure AD device flow) to obtain a session JWT. Call this only if you encounter 401 errors. The MCP server manages authentication automatically. Example: { email: &#x27;user@example.com&#x27;, password: &#x27;...&#x27; }"
+    description: "Authenticates with GoCertius to obtain a session JWT. Takes NO parameters — credentials are read from the server environment (MCP_AUTH_EMAIL plus MCP_AUTH_PASSWORD, or the OpenID Connect variables). For OpenID accounts this starts an Azure AD device flow: the first call returns a browser link + code to approve in Microsoft Authenticator, then call again to finish. The MCP server manages authentication automatically; call this only if you hit 401 errors."
   - name: session_info
     description: "Retrieves information about the current authenticated session including userId, account, and token expiry. Use to verify who is authenticated or check session validity. No required parameters."
+  - name: evidence_upload
+    description: "Evidence Upload (custom tool)."

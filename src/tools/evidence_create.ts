@@ -8,18 +8,23 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { createClient, createConfig } from "../api/client/index.js";
 import { createEvidenceControllerRun } from "../api/sdk.gen.js";
-import { defineTool } from "../core/index.js";
+import { defineTool, safeDownload } from "../core/index.js";
 
 export const evidence_create = defineTool({
   name: "evidence_create",
   description:
-    "Registers a new evidence record inside an evidence group. " +
+    "Registers a NEW evidence record inside an evidence group. " +
     "Requires: evidence_group_create → evidenceGroupId, case_file_create → caseFileId. " +
     "Generate a UUID v4 for `id`. Compute the SHA-256 hex hash of the file BEFORE calling. " +
-    "custodyType INTERNAL = GoCertius stores the file; EXTERNAL = only hash is registered. " +
-    "Optional: pass `fileUrl` (a publicly accessible URL) to have the tool download and upload " +
-    "the file to S3 automatically — no separate PUT needed. " +
-    "If fileUrl is omitted, the response includes uploadFileUrl for manual upload. " +
+    "Normal INTERNAL flow: call evidence_create with custodyType INTERNAL and NO fileUrl; " +
+    "the API returns uploadFileUrl, a presigned S3 URL. You MUST PUT the exact file bytes to " +
+    "uploadFileUrl, then verify with evidence_get/evidence_list, and ONLY THEN call evidence_seal. " +
+    "Do not seal an evidence group until every INTERNAL evidence file has been uploaded. " +
+    "Convenience flow: if you pass `fileUrl` (public HTTPS, no redirects, under 1 GiB), " +
+    "this tool downloads that URL and PUTs the bytes to uploadFileUrl for you. " +
+    "EXTERNAL flow: use custodyType EXTERNAL only when you intentionally register hash-only evidence; " +
+    "still generate a fresh UUID for each evidence. If an INTERNAL evidence creation/upload failed " +
+    "and you want to retry as EXTERNAL, create a NEW evidence id; do not reuse an id whose outcome is unknown. " +
     "WARNING: the API sometimes returns {code:'EvidenceCreateError'} even when the evidence " +
     "was successfully persisted — always verify with evidence_list before retrying.",
   inputSchema: z.object({
@@ -29,12 +34,25 @@ export const evidence_create = defineTool({
     title: z.string().max(128).describe("Human-readable title for the evidence"),
     fileName: z.string().describe("Original file name including extension"),
     hash: z.string().describe("SHA-256 hex digest of the file content (64 hex chars)"),
-    custodyType: z.enum(["INTERNAL", "EXTERNAL"]).default("INTERNAL")
+    custodyType: z
+      .enum(["INTERNAL", "EXTERNAL"])
+      .default("INTERNAL")
       .describe("INTERNAL = GoCertius stores the file; EXTERNAL = only hash registered"),
-    fileUrl: z.string().url().optional()
-      .describe("Optional public URL to download and auto-upload the file to S3 (custodyType INTERNAL only). Eliminates the manual PUT step."),
+    fileUrl: z
+      .string()
+      .url()
+      .optional()
+      .describe(
+        "Optional public HTTPS URL to download and auto-upload to the returned uploadFileUrl (custodyType INTERNAL only). Omit this when you want the manual presigned-URL flow.",
+      ),
   }),
-  annotations: { destructive: false, idempotent: true, requiresUserConfirmation: false },
+  annotations: {
+    title: "Evidence Create",
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false,
+  },
   pollable: false,
   idempotencyWindowSeconds: 60,
   async execute(input, ctx) {
@@ -60,8 +78,7 @@ export const evidence_create = defineTool({
 
     const response = await createEvidenceControllerRun({
       client: sdkClient,
-      path: { caseFileId, evidenceGroupId } as any,
-      body: { id, title, fileName, hash, custodyType } as any,
+      body: { id, title, fileName, hash, custodyType, caseFileId, evidenceGroupId } as any,
     });
 
     if (response.error !== undefined) {
@@ -77,11 +94,7 @@ export const evidence_create = defineTool({
 
     // Auto-upload if fileUrl provided and S3 URL available
     if (fileUrl && uploadFileUrl && custodyType === "INTERNAL") {
-      const fileResponse = await fetch(fileUrl);
-      if (!fileResponse.ok) {
-        throw new Error(`evidence_create: failed to download fileUrl (HTTP ${fileResponse.status})`);
-      }
-      const fileBuffer = Buffer.from(await fileResponse.arrayBuffer());
+      const fileBuffer = await safeDownload(fileUrl);
       const hashB64 = createHash("sha256").update(fileBuffer).digest("base64");
 
       const uploadResponse = await fetch(uploadFileUrl, {
@@ -90,7 +103,8 @@ export const evidence_create = defineTool({
           "Content-Type": "application/octet-stream",
           "x-amz-checksum-sha256": hashB64,
         },
-        body: fileBuffer,
+        body: new Uint8Array(fileBuffer),
+        signal: AbortSignal.timeout(120_000),
       });
 
       if (!uploadResponse.ok) {

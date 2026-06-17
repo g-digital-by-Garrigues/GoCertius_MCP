@@ -8,13 +8,23 @@ import type { ZodType } from "zod";
 import type { AuthContext } from "../auth/session.js";
 import type { McpErrorContent } from "../errors/index.js";
 
+/**
+ * MCP-spec tool annotations (https://modelcontextprotocol.io). These are
+ * forwarded to the client so it can warn/confirm before risky operations.
+ * Spec keys only — the pre-E13 keys (destructive/idempotent/requiresUserConfirmation)
+ * were never sent to the client and are removed.
+ */
 export interface ToolAnnotations {
-  /** Writes that cannot be undone (shown in Claude UI) */
-  destructive?: boolean;
-  /** Safe to call multiple times with same result */
-  idempotent?: boolean;
-  /** Prompts user before execution in clients that support it */
-  requiresUserConfirmation?: boolean;
+  /** Human-readable title for the tool. */
+  title?: string;
+  /** Tool does not modify its environment (read-only). */
+  readOnlyHint?: boolean;
+  /** Tool may perform destructive/irreversible updates. Spec default is true; set false explicitly on non-destructive writes. */
+  destructiveHint?: boolean;
+  /** Calling repeatedly with the same args has no additional effect. */
+  idempotentHint?: boolean;
+  /** Tool interacts with an open world (e.g. the web). false = closed domain (this server's API). */
+  openWorldHint?: boolean;
 }
 
 /** Minimal form-based elicitation params (avoids SDK import in tool files) */

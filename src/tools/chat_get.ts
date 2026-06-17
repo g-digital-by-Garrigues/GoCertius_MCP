@@ -12,12 +12,14 @@ const inputSchema = z.object({
 
 export const chat_get = defineTool({
   name: "chat_get",
-  description: "Retrieves details of a certified chat. Requires: case_file_create → caseFileId, chat_create → chatId. Returns status, participants, and registeredAt timestamp.",
+  description: "Retrieves details of a certified chat. Requires: personal caseFileId and chat_create → chatId. Returns status, participants, and registeredAt timestamp. After chat_create, poll chat_get until status is active/registered and registeredAt is present; createdAt is not enough for certificate creation.",
   inputSchema,
   annotations: {
-    destructive: false,
-    idempotent: true,
-    requiresUserConfirmation: false,
+    title: "Chat Get",
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false,
   },
   pollable: false,
   idempotencyWindowSeconds: 60,

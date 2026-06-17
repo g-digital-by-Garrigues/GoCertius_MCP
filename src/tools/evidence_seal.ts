@@ -2,12 +2,15 @@
 // Auto-generated version has pollable:true which requires taskSupport capability.
 // Sourced from operation: CloseEvidenceGroupController_run (POST /case-files/{caseFileId}/evidence-groups/{id}/close)
 
-import { defineTool } from "../core/index.js";
 import { z } from "zod";
 import { createClient, createConfig } from "../api/client/index.js";
 import { closeEvidenceGroupControllerRun } from "../api/sdk.gen.js";
-import { zCloseEvidenceGroupControllerRunPath } from "../api/zod.gen.js";
-import { zCloseEvidenceGroupControllerRunBody } from "../api/zod.gen.js";
+import {
+  zCloseEvidenceGroupControllerRunBody,
+  zCloseEvidenceGroupControllerRunPath,
+} from "../api/zod.gen.js";
+import { defineTool } from "../core/index.js";
+
 const inputSchema = z.object({
   ...zCloseEvidenceGroupControllerRunPath.shape,
   ...zCloseEvidenceGroupControllerRunBody.shape,
@@ -15,12 +18,15 @@ const inputSchema = z.object({
 
 export const evidence_seal = defineTool({
   name: "evidence_seal",
-  description: "Seal and certify an evidence group. Closes the group to new additions and triggers async timestamping. Returns immediately — the group transitions OPEN → CLOSING → CLOSED. Poll evidence_group_list until status is CLOSED before linking to a dossier.",
+  description:
+    "Seal and certify an evidence group. Closes the group to new additions and triggers async timestamping. Returns immediately — the group transitions OPEN → CLOSING → CLOSED. Poll evidence_group_list until status is CLOSED before linking to a dossier.",
   inputSchema,
   annotations: {
-    destructive: false,
-    idempotent: false,
-    requiresUserConfirmation: false,
+    title: "Evidence Seal",
+    readOnlyHint: false,
+    destructiveHint: true,
+    idempotentHint: false,
+    openWorldHint: false,
   },
   pollable: false,
   idempotencyWindowSeconds: 86400,
@@ -47,9 +53,10 @@ export const evidence_seal = defineTool({
     });
 
     if (response.error !== undefined) {
-      const msg = typeof response.error === "object" && response.error !== null && "message" in response.error
-        ? String(response.error.message)
-        : JSON.stringify(response.error);
+      const msg =
+        typeof response.error === "object" && response.error !== null && "message" in response.error
+          ? String(response.error.message)
+          : JSON.stringify(response.error);
       throw new Error(msg);
     }
     return response.data;

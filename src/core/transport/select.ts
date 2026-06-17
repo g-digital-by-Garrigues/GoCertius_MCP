@@ -1,7 +1,7 @@
 /**
  * Transport selection (E3-01, AC3): env-based, fail-fast on unknown value.
  */
-import { HonoTransport } from "./http.js";
+import { HttpTransport } from "./http.js";
 import { StdioTransport } from "./stdio.js";
 
 export type TransportType = "stdio" | "http";
@@ -15,12 +15,12 @@ export class UnknownTransportError extends Error {
 
 export function selectTransport(
   env = process.env.MCP_TRANSPORT ?? "stdio",
-): StdioTransport | HonoTransport {
+): StdioTransport | HttpTransport {
   switch (env) {
     case "stdio":
       return new StdioTransport();
     case "http":
-      return new HonoTransport();
+      return new HttpTransport();
     default:
       throw new UnknownTransportError(env);
   }

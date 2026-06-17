@@ -41,6 +41,7 @@ import { chat_certificate_create } from "./tools/chat_certificate_create.js";
 import { chat_certificate_get } from "./tools/chat_certificate_get.js";
 import { session_login } from "./tools/session_login.js";
 import { session_info } from "./tools/session_info.js";
+import { evidence_upload } from "./tools/evidence_upload.js";
 
 await createServer({
   name: "io.github.g-digital-by-Garrigues/gocertius",
@@ -85,5 +86,6 @@ chat_certificate_create,
 chat_certificate_get,
 session_login,
 session_info,
+evidence_upload,
   ],
 });
