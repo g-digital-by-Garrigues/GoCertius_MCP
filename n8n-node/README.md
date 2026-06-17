@@ -1,6 +1,6 @@
 # Gocertius — n8n connector
 
-> MCP server for GoCertius, EAD Trust's Digital Trust platform. Provides certified evidence management, dossier creation, certified notifications, and certified chats via AI agents.
+> MCP server for GoCertius: certified evidence, dossiers, notifications and chats via AI agents.
 
 Install this connector and use Gocertius operations as steps inside any n8n workflow. Each operation maps to one capability of the underlying Gocertius platform.
 
