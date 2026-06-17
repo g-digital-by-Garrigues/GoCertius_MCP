@@ -6,7 +6,7 @@
 [![provenance](https://img.shields.io/badge/npm-provenance-green)](https://www.npmjs.com/package/@g-digital/mcp-gocertius)
 [![smithery badge](https://smithery.ai/badge/g-digital/gocertius)](https://smithery.ai/servers/g-digital/gocertius)
 
-MCP server for GoCertius, EAD Trust's Digital Trust platform. Provides certified evidence management, dossier creation, certified notifications, and certified chats via AI agents.
+MCP server for GoCertius: certified evidence, dossiers, notifications and chats via AI agents.
 
 ## Quick start
 
