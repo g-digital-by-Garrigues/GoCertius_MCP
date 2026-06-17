@@ -17,7 +17,13 @@ export const session_info = defineTool({
     "Prerequisites: a valid session (call session_login first if needed). " +
     "Example: session_info() → { userId: '...uuid...', type: 'Password' }",
   inputSchema: z.object({}),
-  annotations: { destructive: false, idempotent: true, requiresUserConfirmation: false },
+  annotations: {
+    title: "Session Info",
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false,
+  },
   pollable: false,
   idempotencyWindowSeconds: 60,
   async execute(_input, ctx) {

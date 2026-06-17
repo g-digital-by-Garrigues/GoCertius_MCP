@@ -37,7 +37,13 @@ export const session_login = defineTool({
     "and code for the user to approve with Microsoft Authenticator; call session_login AGAIN after " +
     "approving to complete authentication.",
   inputSchema: z.object({}),
-  annotations: { destructive: false, idempotent: false, requiresUserConfirmation: false },
+  annotations: {
+    title: "Session Login",
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: false,
+  },
   pollable: false,
   idempotencyWindowSeconds: 0,
   async execute(_input, _ctx) {

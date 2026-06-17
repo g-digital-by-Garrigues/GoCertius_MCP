@@ -21,7 +21,13 @@ export const dossier_certify = defineTool({
     caseFileId: z.string().describe("UUID of the case file that owns this dossier"),
     dossierId: z.string().describe("UUID of the dossier to certify (must be in DRAFT status)"),
   }),
-  annotations: { destructive: false, idempotent: false, requiresUserConfirmation: false },
+  annotations: {
+    title: "Dossier Certify",
+    readOnlyHint: false,
+    destructiveHint: true,
+    idempotentHint: false,
+    openWorldHint: false,
+  },
   pollable: false,
   idempotencyWindowSeconds: 60,
   async execute(input, ctx) {

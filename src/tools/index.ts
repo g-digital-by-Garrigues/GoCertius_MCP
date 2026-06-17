@@ -38,3 +38,4 @@ export { chat_certificate_create } from "./chat_certificate_create.js";
 export { chat_certificate_get } from "./chat_certificate_get.js";
 export { session_login } from "./session_login.js";
 export { session_info } from "./session_info.js";
+export { evidence_upload } from "./evidence_upload.js";

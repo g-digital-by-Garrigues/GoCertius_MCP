@@ -2,23 +2,27 @@
 // Auto-generated version has pollable:true which requires taskSupport capability.
 // Sourced from operation: SendNotificationRequestController_run (PUT /case-files/{caseFileId}/notification-requests/{notificationRequestId}/send)
 
-import { defineTool } from "../core/index.js";
 import { z } from "zod";
 import { createClient, createConfig } from "../api/client/index.js";
 import { sendNotificationRequestControllerRun } from "../api/sdk.gen.js";
 import { zSendNotificationRequestControllerRunPath } from "../api/zod.gen.js";
+import { defineTool } from "../core/index.js";
+
 const inputSchema = z.object({
   ...zSendNotificationRequestControllerRunPath.shape,
 });
 
 export const notification_request_send = defineTool({
   name: "notification_request_send",
-  description: "Trigger delivery of a certified notification to all added recipients. Returns immediately — delivery is async. Poll notification_request_status until status is DELIVERED before retrieving certificates.",
+  description:
+    "Trigger delivery of a certified notification to all added recipients. Returns immediately — delivery is async. Poll notification_request_status until status is DELIVERED before retrieving certificates.",
   inputSchema,
   annotations: {
-    destructive: false,
-    idempotent: false,
-    requiresUserConfirmation: false,
+    title: "Notification Request Send",
+    readOnlyHint: false,
+    destructiveHint: true,
+    idempotentHint: false,
+    openWorldHint: false,
   },
   pollable: false,
   idempotencyWindowSeconds: 86400,
@@ -44,9 +48,10 @@ export const notification_request_send = defineTool({
     });
 
     if (response.error !== undefined) {
-      const msg = typeof response.error === "object" && response.error !== null && "message" in response.error
-        ? String(response.error.message)
-        : JSON.stringify(response.error);
+      const msg =
+        typeof response.error === "object" && response.error !== null && "message" in response.error
+          ? String(response.error.message)
+          : JSON.stringify(response.error);
       throw new Error(msg);
     }
     return response.data;

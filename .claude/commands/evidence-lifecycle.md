@@ -36,12 +36,14 @@ Case File
    - The API may return a network error even when the evidence was persisted — verify with `evidence_list` if in doubt
 
    **INTERNAL** — GoCertius stores the file in S3, allowing the platform to verify the hash directly:
-   - `evidence_create` with `custodyType: "INTERNAL"`, same fields plus `hash`
+   - **Easiest path — `evidence_upload`**: pass the local file (`filePath` in stdio mode, or `contentBase64`) plus `caseFileId`, `evidenceGroupId`, `title`, `fileName`. It computes the SHA-256, registers the evidence, and uploads the bytes in one call — no manual hashing or PUT. Use this when the file is on the local machine.
+   - **Manual path — `evidence_create`** with `custodyType: "INTERNAL"`, same fields plus `hash`:
    - Response contains `{ uploadFileUrl, expiration }` — a pre-signed S3 URL (valid ~10 min)
    - Upload the file: `PUT <uploadFileUrl>` with headers:
      - `Content-Type: <mime-type>`
      - `x-amz-checksum-sha256: <sha256-base64>` (SHA-256 of the file content, **base64-encoded**, not hex)
    - A 200 from S3 confirms the upload; GoCertius processes it asynchronously
+   - Or pass `fileUrl` (public HTTPS, no redirect, <1 GiB) to `evidence_create` to have it download+upload automatically
    - Computing the base64 checksum: `openssl dgst -sha256 -binary <file> | base64`
 
    Repeat for each file in the group.

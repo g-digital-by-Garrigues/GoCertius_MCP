@@ -24,6 +24,9 @@ export { createLogger, Logger, logger } from "./logger.js";
 export type { SpanContext, ToolMetrics } from "./observability.js";
 // Observability (E9)
 export { metrics, withMetrics } from "./observability.js";
+export type { SafeDownloadOptions } from "./safe-fetch.js";
+// SSRF-safe download (E13)
+export { safeDownload } from "./safe-fetch.js";
 export type { ServerConfig } from "./server.js";
 // Server wiring
 export { createServer } from "./server.js";
@@ -50,7 +53,7 @@ export {
 export type { ToolAnnotations, ToolContext, ToolResult, ToolSpec } from "./tools/index.js";
 // Tool authoring
 export { defineTool, globalRegistry, ToolRegistry } from "./tools/index.js";
-export { HonoTransport } from "./transport/http.js";
+export { HttpTransport } from "./transport/http.js";
 export type { HttpRequestContext } from "./transport/request-context.js";
 export { httpRequestContext } from "./transport/request-context.js";
 export { selectTransport, UnknownTransportError } from "./transport/select.js";

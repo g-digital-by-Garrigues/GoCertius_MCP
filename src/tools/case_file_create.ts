@@ -5,11 +5,12 @@
 // Copied verbatim by the generator (AC3 override mechanism).
 // Paths are relative to the emitted location: dist-repos/gocertius/src/tools/
 
-import { defineTool } from "../core/index.js";
 import { z } from "zod";
 import { createClient, createConfig } from "../api/client/index.js";
 import { createCaseFileControllerRun } from "../api/sdk.gen.js";
 import { zCreateCaseFileControllerRunBody } from "../api/zod.gen.js";
+import { defineTool } from "../core/index.js";
+
 const inputSchema = z.object({
   ...zCreateCaseFileControllerRunBody.shape,
 });
@@ -23,9 +24,11 @@ export const case_file_create = defineTool({
     "Returns caseFileId needed for all subsequent calls.",
   inputSchema,
   annotations: {
-    destructive: false,
-    idempotent: false,
-    requiresUserConfirmation: false,
+    title: "Case File Create",
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: false,
   },
   pollable: false,
   idempotencyWindowSeconds: 60,
@@ -51,9 +54,10 @@ export const case_file_create = defineTool({
     });
 
     if (response.error !== undefined) {
-      const msg = typeof response.error === "object" && response.error !== null && "message" in response.error
-        ? String(response.error.message)
-        : JSON.stringify(response.error);
+      const msg =
+        typeof response.error === "object" && response.error !== null && "message" in response.error
+          ? String(response.error.message)
+          : JSON.stringify(response.error);
       throw new Error(msg);
     }
     return response.data;

@@ -4,6 +4,6 @@
  * Transport is selected at startup via MCP_TRANSPORT env var.
  */
 
-export { HonoTransport } from "./http.js";
+export { HttpTransport } from "./http.js";
 export { selectTransport } from "./select.js";
 export { StdioTransport } from "./stdio.js";
