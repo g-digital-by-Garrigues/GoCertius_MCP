@@ -1,43 +1,73 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "description": "GoCertius MCP — certified evidence, dossiers, notifications and chats from EAD Trust's platform.",
+  "description": "MCP server for GoCertius, EAD Trust's Digital Trust platform. Provides certified evidence management, dossier creation, certified notifications, and certified chats via AI agents.",
   "name": "io.github.g-digital-by-Garrigues/gocertius",
   "packages": [
     {
       "environmentVariables": [
         {
-          "description": "Your GoCertius account email address",
-          "isRequired": true,
+          "description": "Set to \"true\" to allow plain http:// fileUrl downloads in evidence_create (default https-only). Private/internal addresses are always rejected regardless.",
+          "isRequired": false,
+          "isSecret": false,
+          "name": "MCP_ALLOW_INSECURE_FILE_URL"
+        },
+        {
+          "description": "Comma-separated allowed Host headers. Empty = Host validation disabled (default). When set, requests with a Host outside the list are rejected.",
+          "isRequired": false,
+          "isSecret": false,
+          "name": "MCP_ALLOWED_HOSTS"
+        },
+        {
+          "description": "Comma-separated allowed browser Origins (DNS-rebinding defense). Empty = reject any request carrying an Origin header; non-browser clients (CLI/SDK) send no Origin and are always allowed. Use '*' to allow all.",
+          "isRequired": false,
+          "isSecret": false,
+          "name": "MCP_ALLOWED_ORIGINS"
+        },
+        {
+          "description": "Your GoCertius account email (Flow 1). Configure one of Flow 1 or Flow 2.",
+          "isRequired": false,
           "isSecret": false,
           "name": "MCP_AUTH_EMAIL"
         },
         {
-          "description": "Your GoCertius account password (See https://www.gocertius.io for credential acquisition.)",
-          "isRequired": true,
+          "description": "Your GoCertius account password (Flow 1, email/password accounts) (See https://www.gocertius.io for credential acquisition.)",
+          "isRequired": false,
           "isSecret": true,
           "name": "MCP_AUTH_PASSWORD"
         },
         {
-          "description": "OpenID Connect client ID",
-          "isRequired": true,
+          "description": "Interface the HTTP transport binds to. Default 127.0.0.1 (localhost only). Set 0.0.0.0 to expose on all interfaces (containers do this automatically).",
+          "isRequired": false,
+          "isSecret": false,
+          "name": "MCP_HTTP_HOST"
+        },
+        {
+          "description": "Set to \"true\" for public/multi-tenant deployments. Activates Host validation and refuses to start unless MCP_ALLOWED_ORIGINS or MCP_ALLOWED_HOSTS is set (fail-closed).",
+          "isRequired": false,
+          "isSecret": false,
+          "name": "MCP_HTTP_PUBLIC"
+        },
+        {
+          "description": "OpenID Connect client ID (Flow 2)",
+          "isRequired": false,
           "isSecret": false,
           "name": "MCP_OPENID_CLIENT_ID"
         },
         {
-          "description": "OpenID Connect issuer URL",
-          "isRequired": true,
+          "description": "OpenID Connect issuer URL (Flow 2)",
+          "isRequired": false,
           "isSecret": false,
           "name": "MCP_OPENID_ISSUER"
         },
         {
-          "description": "OpenID Connect refresh token (See https://www.gocertius.io for credential acquisition.)",
-          "isRequired": true,
+          "description": "OpenID Connect refresh token (Flow 2) (See https://www.gocertius.io for credential acquisition.)",
+          "isRequired": false,
           "isSecret": true,
           "name": "MCP_OPENID_REFRESH_TOKEN"
         },
         {
           "description": "HTTP port when running in hosted (HTTP) mode; ignored in stdio mode",
-          "isRequired": true,
+          "isRequired": false,
           "isSecret": false,
           "name": "PORT"
         }
@@ -47,12 +77,12 @@
       "transport": {
         "type": "stdio"
       },
-      "version": "1.2.20"
+      "version": "1.3.0"
     }
   ],
   "repository": {
     "source": "github",
     "url": "https://github.com/g-digital-by-Garrigues/GoCertius_MCP"
   },
-  "version": "1.2.20"
+  "version": "1.3.0"
 }
