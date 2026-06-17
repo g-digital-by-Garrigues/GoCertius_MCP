@@ -3,36 +3,49 @@
 configSchema:
   $schema: https://json-schema.org/draft/2020-12/schema
   properties:
+    MCP_ALLOWED_HOSTS:
+      description: Comma-separated allowed Host headers. Empty = Host validation disabled (default). When set, requests with a Host outside the list are rejected.
+      type: string
+    MCP_ALLOWED_ORIGINS:
+      description: Comma-separated allowed browser Origins (DNS-rebinding defense). Empty = reject any request carrying an Origin header; non-browser clients (CLI/SDK) send no Origin and are always allowed. Use '*' to allow all.
+      type: string
+    MCP_ALLOW_INSECURE_FILE_URL:
+      description: Set to "true" to allow plain http:// fileUrl downloads in evidence_create (default https-only). Private/internal addresses are always rejected regardless.
+      type: string
     MCP_AUTH_EMAIL:
-      description: Your GoCertius account email address
+      description: Your GoCertius account email (Flow 1). Configure one of Flow 1 or Flow 2.
       type: string
     MCP_AUTH_PASSWORD:
-      description: Your GoCertius account password (See https://www.gocertius.io for credential acquisition.)
+      description: Your GoCertius account password (Flow 1, email/password accounts) (See https://www.gocertius.io for credential acquisition.)
       format: password
       type: string
+    MCP_HTTP_HOST:
+      description: Interface the HTTP transport binds to. Default 127.0.0.1 (localhost only). Set 0.0.0.0 to expose on all interfaces (containers do this automatically).
+      type: string
+    MCP_HTTP_PUBLIC:
+      description: Set to "true" for public/multi-tenant deployments. Activates Host validation and refuses to start unless MCP_ALLOWED_ORIGINS or MCP_ALLOWED_HOSTS is set (fail-closed).
+      type: string
     MCP_OPENID_CLIENT_ID:
-      description: OpenID Connect client ID
+      description: OpenID Connect client ID (Flow 2)
       type: string
     MCP_OPENID_ISSUER:
-      description: OpenID Connect issuer URL
+      description: OpenID Connect issuer URL (Flow 2)
       type: string
     MCP_OPENID_REFRESH_TOKEN:
-      description: OpenID Connect refresh token (See https://www.gocertius.io for credential acquisition.)
+      description: OpenID Connect refresh token (Flow 2) (See https://www.gocertius.io for credential acquisition.)
       format: password
       type: string
     PORT:
       description: HTTP port when running in hosted (HTTP) mode; ignored in stdio mode
       type: string
-  required:
-    - MCP_AUTH_EMAIL
-    - MCP_AUTH_PASSWORD
-    - MCP_OPENID_CLIENT_ID
-    - MCP_OPENID_ISSUER
-    - MCP_OPENID_REFRESH_TOKEN
-    - PORT
   type: object
 env:
+  MCP_ALLOWED_HOSTS: ""
+  MCP_ALLOWED_ORIGINS: ""
+  MCP_ALLOW_INSECURE_FILE_URL: ""
   MCP_AUTH_EMAIL: ""
+  MCP_HTTP_HOST: ""
+  MCP_HTTP_PUBLIC: ""
   MCP_OPENID_CLIENT_ID: ""
   MCP_OPENID_ISSUER: ""
   PORT: ""
