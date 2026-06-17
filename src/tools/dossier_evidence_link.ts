@@ -24,7 +24,13 @@ export const dossier_evidence_link = defineTool({
       .describe("UUID of the case file containing the evidences (often same as caseFileId)"),
     ids: z.array(z.string().uuid()).describe("UUIDs of the evidence items to link"),
   }),
-  annotations: { destructive: false, idempotent: false, requiresUserConfirmation: false },
+  annotations: {
+    title: "Dossier Evidence Link",
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: false,
+  },
   pollable: false,
   idempotencyWindowSeconds: 0,
   async execute(input, ctx) {

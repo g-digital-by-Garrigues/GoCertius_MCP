@@ -45,7 +45,7 @@ import {
   signatureRequestTerminal,
 } from "./tasks/sse-bridge.js";
 import type { ToolContext, ToolSpec } from "./tools/index.js";
-import { HonoTransport } from "./transport/http.js";
+import { HttpTransport } from "./transport/http.js";
 import { httpRequestContext } from "./transport/request-context.js";
 import { selectTransport } from "./transport/select.js";
 
@@ -139,14 +139,13 @@ export async function createServer(config: ServerConfig): Promise<void> {
 
   const transport = selectTransport();
 
-  if (transport instanceof HonoTransport) {
+  if (transport instanceof HttpTransport) {
     // Wire SSE bridge status into /healthz (STR-E8-03)
     transport.setSseStatusProvider(() => sseBridge.connectionStatus());
 
     // Per-session McpServer: each MCP client gets a fresh server instance (Bug 2 fix).
     // experimental.tasks capability advertised so clients can use callToolStream (Bug 3 fix).
     transport.setSessionFactory(async (sessionTransport) => {
-      // biome-ignore lint/suspicious/noExplicitAny: McpServer capabilities type + taskStore under exactOptionalPropertyTypes
       const sessionServer = new McpServer({ name: config.name, version: config.version }, {
         capabilities: {
           experimental: { tasks: {} },
@@ -173,7 +172,6 @@ export async function createServer(config: ServerConfig): Promise<void> {
       process.exit(0);
     });
   } else {
-    // biome-ignore lint/suspicious/noExplicitAny: McpServer capabilities type + taskStore under exactOptionalPropertyTypes
     const mcpServer = new McpServer({ name: config.name, version: config.version }, {
       capabilities: {
         experimental: { tasks: {} },
@@ -211,50 +209,58 @@ function registerSyncTool(
 ): void {
   const inputShape = extractZodShape(tool.inputSchema);
 
-  mcpServer.tool(tool.name, tool.description, inputShape, async (rawArgs, _extra) => {
-    const parseResult = tool.inputSchema.safeParse(rawArgs);
-    if (!parseResult.success) return mapZodError(parseResult.error);
-    const input = parseResult.data as unknown;
+  mcpServer.registerTool(
+    tool.name,
+    {
+      description: tool.description,
+      inputSchema: inputShape,
+      ...(tool.annotations ? { annotations: tool.annotations } : {}),
+    },
+    async (rawArgs, _extra) => {
+      const parseResult = tool.inputSchema.safeParse(rawArgs);
+      if (!parseResult.success) return mapZodError(parseResult.error);
+      const input = parseResult.data as unknown;
 
-    const idempKey = IdempotencyCache.computeKey(tool.name, input as Record<string, unknown>);
-    const cached = idempotency.get(tool.name, idempKey);
-    if (cached) return cached as ReturnType<typeof buildMcpResult>;
+      const idempKey = IdempotencyCache.computeKey(tool.name, input as Record<string, unknown>);
+      const cached = idempotency.get(tool.name, idempKey);
+      if (cached) return cached as ReturnType<typeof buildMcpResult>;
 
-    // HTTP mode: per-request JWT from Bearer header takes precedence over server auth
-    const httpCtx = httpRequestContext.getStore();
-    let auth = null;
-    if (httpCtx?.jwt) {
-      auth = { token: httpCtx.jwt, expiresAt: Number.POSITIVE_INFINITY };
-    } else if (authSession && tool.name !== "session_login") {
-      try {
-        const token = await authSession.getToken();
-        auth = { token, expiresAt: Date.now() + 3600_000 };
-      } catch (err) {
-        return buildToolError({
-          operation: tool.name,
-          upstream: err,
-          remediation: "Check MCP_AUTH_* credentials in your server config.",
-        });
+      // HTTP mode: per-request JWT from Bearer header takes precedence over server auth
+      const httpCtx = httpRequestContext.getStore();
+      let auth = null;
+      if (httpCtx?.jwt) {
+        auth = { token: httpCtx.jwt, expiresAt: Number.POSITIVE_INFINITY };
+      } else if (authSession && tool.name !== "session_login") {
+        try {
+          const token = await authSession.getToken();
+          auth = { token, expiresAt: Date.now() + 3600_000 };
+        } catch (err) {
+          return buildToolError({
+            operation: tool.name,
+            upstream: err,
+            remediation: "Check MCP_AUTH_* credentials in your server config.",
+          });
+        }
       }
-    }
 
-    const ctx = buildToolContext(idempKey, auth, mcpServer, idempotency);
+      const ctx = buildToolContext(idempKey, auth, mcpServer, idempotency);
 
-    try {
-      const transport = httpCtx ? "http" : "stdio";
-      const result = await withMetrics(tool.name, () => tool.execute(input, ctx), {
-        ...(tool.pollable !== undefined ? { pollable: tool.pollable } : {}),
-        transport,
-      });
-      const mcpResult = buildMcpResult(result);
-      idempotency.set(tool.name, idempKey, mcpResult, tool.idempotencyWindowSeconds);
-      return mcpResult;
-    } catch (err) {
-      if (isMcpError(err)) return err as ReturnType<typeof buildMcpResult>;
-      log.error({ tool: tool.name, err }, "Tool execution error");
-      return mapUpstreamError(err, { operation: tool.name });
-    }
-  });
+      try {
+        const transport = httpCtx ? "http" : "stdio";
+        const result = await withMetrics(tool.name, () => tool.execute(input, ctx), {
+          ...(tool.pollable !== undefined ? { pollable: tool.pollable } : {}),
+          transport,
+        });
+        const mcpResult = buildMcpResult(result);
+        idempotency.set(tool.name, idempKey, mcpResult, tool.idempotencyWindowSeconds);
+        return mcpResult;
+      } catch (err) {
+        if (isMcpError(err)) return err as ReturnType<typeof buildMcpResult>;
+        log.error({ tool: tool.name, err }, "Tool execution error");
+        return mapUpstreamError(err, { operation: tool.name });
+      }
+    },
+  );
 }
 
 // ── Pollable tool (MCP Tasks, STR-E7-03) ─────────────────────────────────────
@@ -274,6 +280,7 @@ function registerPollableTool(
     {
       description: tool.description,
       inputSchema: inputShape,
+      ...(tool.annotations ? { annotations: tool.annotations } : {}),
       execution: { taskSupport: "required" },
     },
     {
@@ -327,7 +334,6 @@ function registerPollableTool(
             filterKey,
             ...bridgeCfg,
             onComplete: async (result) => {
-              // biome-ignore lint/suspicious/noExplicitAny: Result type construction
               await capturedStore.storeTaskResult(
                 taskId,
                 "completed",
@@ -336,7 +342,6 @@ function registerPollableTool(
               log.info({ tool: tool.name }, `SSE: task ${taskId} completed`);
             },
             onFail: async (error) => {
-              // biome-ignore lint/suspicious/noExplicitAny: Result type construction
               await capturedStore.storeTaskResult(
                 taskId,
                 "failed",

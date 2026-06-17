@@ -12,12 +12,14 @@ const inputSchema = z.object({
 
 export const chat_invitation_url = defineTool({
   name: "chat_invitation_url",
-  description: "Returns the Telegram invitation URL for a certified chat. Requires: chat_create → chatId, case_file_create → caseFileId. Share the returned invitationUrl with participants so they can join the certified channel.",
+  description: "Returns the Telegram invitation URL for a certified chat. Requires: chat_create → chatId and the personal caseFileId. Do not call while chat_get still shows status `creating`; wait until the chat is registered/active, otherwise the API can answer Chat not found. Share the returned invitationUrl with participants so they can join the certified channel.",
   inputSchema,
   annotations: {
-    destructive: false,
-    idempotent: true,
-    requiresUserConfirmation: false,
+    title: "Chat Invitation Url",
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false,
   },
   pollable: false,
   idempotencyWindowSeconds: 60,

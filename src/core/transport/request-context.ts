@@ -9,7 +9,7 @@ export interface HttpRequestContext {
 
 /**
  * AsyncLocalStorage that carries HTTP request context through async call chains.
- * Set by HonoTransport for every /mcp request; read by server.ts tool handlers
+ * Set by HttpTransport for every /mcp request; read by server.ts tool handlers
  * and buildToolContext to supply per-request JWT and correlationId.
  */
 export const httpRequestContext = new AsyncLocalStorage<HttpRequestContext>();

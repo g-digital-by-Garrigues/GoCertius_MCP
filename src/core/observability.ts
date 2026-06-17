@@ -60,7 +60,6 @@ async function getOtelApi(): Promise<OtelApi | null> {
   try {
     // Use Function constructor to bypass TS static import resolution for optional peer dep.
     // @opentelemetry/api must be installed by consumers who set MCP_OTEL_ENABLED=true.
-    // biome-ignore lint/security/noGlobalEval: intentional bypass for optional peer dep lazy-load
     const lazyImport = new Function("m", "return import(m)") as (m: string) => Promise<unknown>;
     _otelApi = await lazyImport("@opentelemetry/api");
     otelLog.info({ transport: "otel" }, "OpenTelemetry API loaded");
