@@ -2,7 +2,7 @@
 // The generated tool always POSTs. The API returns an upstream error if a
 // certificate with the same id already exists, so first list by receiver and
 // return the existing certificate when present.
-// Sourced from operation: CreateNotificationCertificateController_run
+// Sourced from operation: CreateNotificationCertificateController_run (POST /case-files/{caseFileId}/notification-requests/{notificationRequestId}/receivers/{receiverId}/certificates)
 
 import { z } from "zod";
 import { createClient, createConfig } from "../api/client/index.js";
