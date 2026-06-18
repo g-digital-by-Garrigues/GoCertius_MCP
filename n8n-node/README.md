@@ -1,8 +1,8 @@
-# Gocertius — n8n connector
+# GoCertius — n8n connector
 
 > MCP server for GoCertius: certified evidence, dossiers, notifications and chats via AI agents.
 
-Install this connector and use Gocertius operations as steps inside any n8n workflow. Each operation maps to one capability of the underlying Gocertius platform.
+Install this connector and use GoCertius operations as steps inside any n8n workflow. Each operation maps to one capability of the underlying GoCertius platform.
 
 ## Install (self-hosted n8n)
 
@@ -10,7 +10,7 @@ Install this connector and use Gocertius operations as steps inside any n8n work
 npm install @g-digital/n8n-nodes-gocertius
 ```
 
-Then restart n8n. The node will appear in the Nodes panel under "Gocertius".
+Then restart n8n. The node will appear in the Nodes panel under "GoCertius".
 
 ## Using with n8n AI Agent
 
@@ -23,7 +23,7 @@ For AI-driven automation, configure an **n8n AI Agent node** with the following 
 Paste this into your AI Agent node's **System Message**:
 
 ```
-You are a Digital Trust assistant using the Gocertius n8n connector.
+You are a Digital Trust assistant using the GoCertius n8n connector.
 UUID generation: generate UUID v4 for all `id` fields you must supply.
 IDs from responses: never invent path parameters — always use values returned by previous tool calls.
 Async operations: after evidence_seal, dossier_certify, signature activation, and chat certification — poll the corresponding list/status tool until the terminal state is reached before proceeding.
@@ -74,22 +74,16 @@ See the full lifecycle guide at: https://github.com/g-digital-by-Garrigues/MCP_M
 | `chat_certificate_get` | Retrieves a certified chat certificate including its status, message range, and PDF download URL. Prerequisites: the certificate must have been created with chat_certificate_create. Returns documentUrl when status is CERTIFIED. Example: chat_certificate_get({ caseFileId: '...', chatId: '...', id: '...' }) |
 | `session_login` | Authenticate with GoCertius. Reads MCP_AUTH_EMAIL to discover the auth type (Password or OpenId) for that account. For Password accounts: uses MCP_AUTH_PASSWORD to obtain a session JWT. For OpenId accounts: starts an Azure AD device flow — on the FIRST call returns a browser link and code for the user to approve with Microsoft Authenticator; call session_login AGAIN after approving to complete authentication. |
 | `session_info` | Returns the authenticated user's session info including userId, session type (Password or OpenId), and for OpenId sessions: issuer, clientId, and scopes. Use this to retrieve the userId (UUID) required by case_file_list and other user-scoped operations. Prerequisites: a valid session (call session_login first if needed). Example: session_info() → { userId: '...uuid...', type: 'Password' } |
-| `evidence_upload` | Uploads a local file as evidence in one step: computes its SHA-256, registers the evidence record (custodyType INTERNAL = GoCertius stores the file), and uploads the bytes to S3 — no manual hashing or PUT needed. Internally this follows the required GoCertius sequence: create INTERNAL evidence → receive uploadFileUrl (presigned S3 URL) → PUT file bytes → return uploaded:true. Requires: case_file_create → caseFileId, evidence_group_create → evidenceGroupId. Provide EXACTLY ONE of `filePath` (absolute local path, stdio/local mode only) or `contentBase64` (base64-encoded file content, ~10 MB max). Use evidence_upload when the file is on the local machine; use evidence_create when you already have the SHA-256 hash, need to inspect/use uploadFileUrl manually, or have a public fileUrl. After this tool succeeds, verify with evidence_get/evidence_list and only then call evidence_seal. If this tool fails before returning an evidence id, check evidence_list before retrying; if retrying manually, use evidence_create with a fresh UUID. Local files must be under 1 GiB. |
 
 ## Credentials
 
-This node requires a "Gocertius API" credential with the following fields:
+This node requires a "GoCertius API" credential with the following fields:
 
 | Field | Description | Secret? |
 |---|---|---|
-| `API Base URL` | Base URL of the Gocertius REST API. Production default: `https://api-gocertius.gocertius.io` Leave blank only if you know your environment uses a different endpoint. | no |
-| `MCP_ALLOW_INSECURE_FILE_URL` | Set to "true" to allow plain http:// fileUrl downloads in evidence_create (default https-only). Private/internal addresses are always rejected regardless. | no |
-| `MCP_ALLOWED_HOSTS` | Comma-separated allowed Host headers. Empty = Host validation disabled (default). When set, requests with a Host outside the list are rejected. | no |
-| `MCP_ALLOWED_ORIGINS` | Comma-separated allowed browser Origins (DNS-rebinding defense). Empty = reject any request carrying an Origin header; non-browser clients (CLI/SDK) send no Origin and are always allowed. Use '*' to allow all. | no |
+| `API Base URL` | Base URL of the GoCertius REST API. Production default: `https://api-gocertius.gocertius.io` Leave blank only if you know your environment uses a different endpoint. | no |
 | `MCP_AUTH_EMAIL` | Your GoCertius account email (Flow 1). Configure one of Flow 1 or Flow 2. | no |
 | `MCP_AUTH_PASSWORD` | Your GoCertius account password (Flow 1, email/password accounts) (See https://www.gocertius.io for credential acquisition.) | yes |
-| `MCP_HTTP_HOST` | Interface the HTTP transport binds to. Default 127.0.0.1 (localhost only). Set 0.0.0.0 to expose on all interfaces (containers do this automatically). | no |
-| `MCP_HTTP_PUBLIC` | Set to "true" for public/multi-tenant deployments. Activates Host validation and refuses to start unless MCP_ALLOWED_ORIGINS or MCP_ALLOWED_HOSTS is set (fail-closed). | no |
 > **Need credentials?** Sign up or log in at [https://www.gocertius.io](https://www.gocertius.io).
 
 ## Use as an AI Agent tool
