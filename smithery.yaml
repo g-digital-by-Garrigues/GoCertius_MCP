@@ -10,10 +10,16 @@ configSchema:
       description: Comma-separated allowed browser Origins (DNS-rebinding defense). Empty = reject any request carrying an Origin header; non-browser clients (CLI/SDK) send no Origin and are always allowed. Use '*' to allow all.
       type: string
     MCP_ALLOW_INSECURE_FILE_URL:
-      description: Set to "true" to allow plain http:// fileUrl downloads in evidence_create (default https-only). Private/internal addresses are always rejected regardless.
+      description: Set to "true" to allow plain http:// fileUrl downloads in evidence_create (default https-only). Private/internal addresses are rejected regardless (resolution-time check; see the documented DNS TOCTOU limitation in the hosted-deployment runbook).
+      type: string
+    MCP_ALLOW_UNVERIFIED_BEARER:
+      description: "Escape hatch for MCP_HTTP_PUBLIC=true WITHOUT inbound-token introspection: set to \"true\" ONLY when an upstream gateway already verifies Bearer tokens. The server logs a prominent warning and forwards tokens upstream unverified."
+      type: string
+    MCP_API_BASE_URL:
+      description: Overrides the default upstream API host for every tool
       type: string
     MCP_AUTH_EMAIL:
-      description: Your GoCertius account email (Flow 1). Configure one of Flow 1 or Flow 2.
+      description: Your GoCertius account email (Flow 1). Configure exactly one of Flow 1, 2, or 3.
       type: string
     MCP_AUTH_PASSWORD:
       description: Your GoCertius account password (Flow 1, email/password accounts) (See https://www.gocertius.io for credential acquisition.)
@@ -22,8 +28,11 @@ configSchema:
     MCP_HTTP_HOST:
       description: Interface the HTTP transport binds to. Default 127.0.0.1 (localhost only). Set 0.0.0.0 to expose on all interfaces (containers do this automatically).
       type: string
+    MCP_HTTP_MAX_BODY_BYTES:
+      description: "Maximum accepted POST /mcp request-body size in bytes (default 16777216 = 16 MiB — sized so base64 file uploads within the documented tool limits fit). Oversized requests get a 413 JSON-RPC error before/while reading — closes a memory-exhaustion DoS vector in public deployments. Note: base64 file sources are capped by this limit BEFORE MCP_FILE_MAX_BYTES applies."
+      type: string
     MCP_HTTP_PUBLIC:
-      description: Set to "true" for public/multi-tenant deployments. Activates Host validation and refuses to start unless MCP_ALLOWED_ORIGINS or MCP_ALLOWED_HOSTS is set (fail-closed).
+      description: Set to "true" for public/multi-tenant deployments. Activates Host validation and refuses to start unless (1) MCP_ALLOWED_ORIGINS or MCP_ALLOWED_HOSTS is set AND (2) inbound Bearer introspection is configured (MCP_SVC_INTROSPECT_URL + MCP_SVC_CLIENT_ID/SECRET) or MCP_ALLOW_UNVERIFIED_BEARER=true is set explicitly (fail-closed).
       type: string
     MCP_OPENID_CLIENT_ID:
       description: OpenID Connect client ID (Flow 2)
@@ -35,6 +44,22 @@ configSchema:
       description: OpenID Connect refresh token (Flow 2) (See https://www.gocertius.io for credential acquisition.)
       format: password
       type: string
+    MCP_SVC_CLIENT_ID:
+      description: OAuth2 client_credentials client ID (Flow 3)
+      type: string
+    MCP_SVC_CLIENT_SECRET:
+      description: OAuth2 client_credentials client secret (Flow 3) (See https://www.gocertius.io for credential acquisition.)
+      format: password
+      type: string
+    MCP_SVC_INTROSPECT_URL:
+      description: RFC 7662 token introspection URL for inbound Bearer verification in HTTP mode. Opt-in — reuses the Flow 3 client id/secret above as the resource-server credentials.
+      type: string
+    MCP_SVC_SCOPE:
+      description: Optional OAuth2 scope for the service-account token request (Flow 3)
+      type: string
+    MCP_SVC_TOKEN_URL:
+      description: Token endpoint URL for the OAuth2 client_credentials flow (Flow 3)
+      type: string
     PORT:
       description: HTTP port when running in hosted (HTTP) mode; ignored in stdio mode
       type: string
@@ -43,11 +68,18 @@ env:
   MCP_ALLOWED_HOSTS: ""
   MCP_ALLOWED_ORIGINS: ""
   MCP_ALLOW_INSECURE_FILE_URL: ""
+  MCP_ALLOW_UNVERIFIED_BEARER: ""
+  MCP_API_BASE_URL: ""
   MCP_AUTH_EMAIL: ""
   MCP_HTTP_HOST: ""
+  MCP_HTTP_MAX_BODY_BYTES: ""
   MCP_HTTP_PUBLIC: ""
   MCP_OPENID_CLIENT_ID: ""
   MCP_OPENID_ISSUER: ""
+  MCP_SVC_CLIENT_ID: ""
+  MCP_SVC_INTROSPECT_URL: ""
+  MCP_SVC_SCOPE: ""
+  MCP_SVC_TOKEN_URL: ""
   PORT: ""
 runtime: typescript
 

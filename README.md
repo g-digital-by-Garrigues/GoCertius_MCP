@@ -210,16 +210,24 @@ docker run --rm -i \
 
 | Name | Required | Secret | Description |
 | --- | --- | --- | --- |
-| `MCP_ALLOW_INSECURE_FILE_URL` | No | No | Set to "true" to allow plain http:// fileUrl downloads in evidence_create (default https-only). Private/internal addresses are always rejected regardless. |
+| `MCP_ALLOW_INSECURE_FILE_URL` | No | No | Set to "true" to allow plain http:// fileUrl downloads in evidence_create (default https-only). Private/internal addresses are rejected regardless (resolution-time check; see the documented DNS TOCTOU limitation in the hosted-deployment runbook). |
+| `MCP_ALLOW_UNVERIFIED_BEARER` | No | No | Escape hatch for MCP_HTTP_PUBLIC=true WITHOUT inbound-token introspection: set to "true" ONLY when an upstream gateway already verifies Bearer tokens. The server logs a prominent warning and forwards tokens upstream unverified. |
 | `MCP_ALLOWED_HOSTS` | No | No | Comma-separated allowed Host headers. Empty = Host validation disabled (default). When set, requests with a Host outside the list are rejected. |
 | `MCP_ALLOWED_ORIGINS` | No | No | Comma-separated allowed browser Origins (DNS-rebinding defense). Empty = reject any request carrying an Origin header; non-browser clients (CLI/SDK) send no Origin and are always allowed. Use '*' to allow all. |
-| `MCP_AUTH_EMAIL` | No | No | Your GoCertius account email (Flow 1). Configure one of Flow 1 or Flow 2. |
+| `MCP_API_BASE_URL` | No | No | Overrides the default upstream API host for every tool |
+| `MCP_AUTH_EMAIL` | No | No | Your GoCertius account email (Flow 1). Configure exactly one of Flow 1, 2, or 3. |
 | `MCP_AUTH_PASSWORD` | No | Yes | Your GoCertius account password (Flow 1, email/password accounts) (See https://www.gocertius.io for credential acquisition.) |
 | `MCP_HTTP_HOST` | No | No | Interface the HTTP transport binds to. Default 127.0.0.1 (localhost only). Set 0.0.0.0 to expose on all interfaces (containers do this automatically). |
-| `MCP_HTTP_PUBLIC` | No | No | Set to "true" for public/multi-tenant deployments. Activates Host validation and refuses to start unless MCP_ALLOWED_ORIGINS or MCP_ALLOWED_HOSTS is set (fail-closed). |
+| `MCP_HTTP_MAX_BODY_BYTES` | No | No | Maximum accepted POST /mcp request-body size in bytes (default 16777216 = 16 MiB — sized so base64 file uploads within the documented tool limits fit). Oversized requests get a 413 JSON-RPC error before/while reading — closes a memory-exhaustion DoS vector in public deployments. Note: base64 file sources are capped by this limit BEFORE MCP_FILE_MAX_BYTES applies. |
+| `MCP_HTTP_PUBLIC` | No | No | Set to "true" for public/multi-tenant deployments. Activates Host validation and refuses to start unless (1) MCP_ALLOWED_ORIGINS or MCP_ALLOWED_HOSTS is set AND (2) inbound Bearer introspection is configured (MCP_SVC_INTROSPECT_URL + MCP_SVC_CLIENT_ID/SECRET) or MCP_ALLOW_UNVERIFIED_BEARER=true is set explicitly (fail-closed). |
 | `MCP_OPENID_CLIENT_ID` | No | No | OpenID Connect client ID (Flow 2) |
 | `MCP_OPENID_ISSUER` | No | No | OpenID Connect issuer URL (Flow 2) |
 | `MCP_OPENID_REFRESH_TOKEN` | No | Yes | OpenID Connect refresh token (Flow 2) (See https://www.gocertius.io for credential acquisition.) |
+| `MCP_SVC_CLIENT_ID` | No | No | OAuth2 client_credentials client ID (Flow 3) |
+| `MCP_SVC_CLIENT_SECRET` | No | Yes | OAuth2 client_credentials client secret (Flow 3) (See https://www.gocertius.io for credential acquisition.) |
+| `MCP_SVC_INTROSPECT_URL` | No | No | RFC 7662 token introspection URL for inbound Bearer verification in HTTP mode. Opt-in — reuses the Flow 3 client id/secret above as the resource-server credentials. |
+| `MCP_SVC_SCOPE` | No | No | Optional OAuth2 scope for the service-account token request (Flow 3) |
+| `MCP_SVC_TOKEN_URL` | No | No | Token endpoint URL for the OAuth2 client_credentials flow (Flow 3) |
 | `PORT` | No | No | HTTP port when running in hosted (HTTP) mode; ignored in stdio mode |
 
 | Variable | Required | Description |
@@ -274,7 +282,7 @@ This server exposes **40 tools**:
 | `dossier_evidence_list` | Lists all evidence items linked to a dossier. Requires: caseFileId and dossierId. |
 | `dossier_evidence_get` | Retrieves details of a specific evidence item linked to a dossier. Requires: caseFileId, dossierId, evidenceId. |
 | `dossier_evidence_delete` | Removes an evidence item from a dossier. Only available while dossier is in DRAFT status. Requires: caseFileId, dossierId, evidenceId. |
-| `notification_document_add` | Performs the notification_document_add operation against the GoCertius API. |
+| `notification_document_add` | Performs the notification_document_add operation. Review the API documentation for full field details. |
 | `notification_request_create` | Creates a certified notification request. Requires: case_file_create → caseFileId. Generate a UUID v4 for `id`. Set language to en_GB or es_ES. Returns notificationRequestId. Add at least one receiver with notification_receiver_add before sending. IMPORTANT: The `content` field must be valid HTML — plain text without HTML tags will not render on the recipient landing page. Only the following HTML formats are supported: paragraphs (<p>), bold (<strong>), italic (<em>), unordered lists (<ul><li>), ordered lists (<ol><li>). Do not use other HTML tags or CSS. Avoid special typographic characters (em dashes, smart quotes) in `subject`; use standard ASCII equivalents (hyphen, straight quotes) instead. |
 | `notification_request_send` | Sends the certified notification to all added receivers. Requires: notification_request_create → notificationRequestId, notification_receiver_add (at least one receiver), case_file_create → caseFileId. ASYNC: triggers delivery. Poll notification_request_status until status is SENT or beyond (PARTIALLY_READ, FULLY_READ) before generating certificates. |
 | `notification_request_status` | Checks the delivery status of a certified notification. Requires: notificationRequestId, caseFileId. Returns status (CREATING|DRAFT|IN_PROCESS|SENT|PARTIALLY_READ|FULLY_READ|PARTIALLY_ANSWERED|FULLY_ANSWERED). Poll until status is SENT or beyond. Do not call notification_certificate_get while status is CREATING, DRAFT, or IN_PROCESS. |
@@ -290,7 +298,7 @@ This server exposes **40 tools**:
 | `chat_certificate_get` | Retrieves the certificate of a certified chat. Requires: chat_certificate_create → certificate id, chat_create → chatId, case_file_create → caseFileId. Returns documentUrl when status reaches CERTIFIED. Poll until CERTIFIED before using documentUrl. |
 | `session_login` | Authenticates with GoCertius to obtain a session JWT. Takes NO parameters — credentials are read from the server environment (MCP_AUTH_EMAIL plus MCP_AUTH_PASSWORD, or the OpenID Connect variables). For OpenID accounts this starts an Azure AD device flow: the first call returns a browser link + code to approve in Microsoft Authenticator, then call again to finish. The MCP server manages authentication automatically; call this only if you hit 401 errors. |
 | `session_info` | Retrieves information about the current authenticated session including userId, account, and token expiry. Use to verify who is authenticated or check session validity. No required parameters. |
-| `evidence_upload` | Evidence Upload (custom tool). |
+| `evidence_upload` | Uploads a local file as evidence in one step: computes its SHA-256, registers the evidence record (custodyType INTERNAL = GoCertius stores the file), and uploads the bytes to S3 — no manual hashing or PUT needed. Internally this follows the required GoCertius sequence: create INTERNAL evidence → receive uploadFileUrl (presigned S3 URL) → PUT file bytes → return uploaded:true. Requires: case_file_create → caseFileId, evidence_group_create → evidenceGroupId. Provide EXACTLY ONE of `filePath` (absolute local path, stdio/local mode only) or `contentBase64` (base64-encoded file content, ~10 MB max). Use evidence_upload when the file is on the local machine; use evidence_create when you already have the SHA-256 hash, need to inspect/use uploadFileUrl manually, or have a public fileUrl. After this tool succeeds, verify with evidence_get/evidence_list and only then call evidence_seal. If this tool fails before returning an evidence id, check evidence_list before retrying; if retrying manually, use evidence_create with a fresh UUID. Local files must be under 1 GiB. |
 
 ## Coexistence
 
