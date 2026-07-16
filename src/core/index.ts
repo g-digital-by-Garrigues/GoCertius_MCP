@@ -16,8 +16,24 @@ export {
   toolError,
   UpstreamHttpError,
 } from "./errors/index.js";
+export type { FileResolverConfig, ResolvedFile } from "./files/index.js";
+// File ingestion (E3, ADR-A3)
+export {
+  createFileResolver,
+  DEFAULT_FILE_MAX_BYTES,
+  FileIngestionError,
+  FileInput,
+  FileResolver,
+  isFileIngestionError,
+  isFileInputSchema,
+} from "./files/index.js";
 // Idempotency
-export { DEFAULT_WINDOW_SECONDS, IdempotencyCache, idempotencyCache } from "./idempotency.js";
+export {
+  buildIdempotencyKeyHeader,
+  DEFAULT_WINDOW_SECONDS,
+  IdempotencyCache,
+  idempotencyCache,
+} from "./idempotency.js";
 export type { LogContext } from "./logger.js";
 // Logging
 export { createLogger, Logger, logger } from "./logger.js";
@@ -29,7 +45,7 @@ export type { SafeDownloadOptions } from "./safe-fetch.js";
 export { safeDownload } from "./safe-fetch.js";
 export type { ServerConfig } from "./server.js";
 // Server wiring
-export { createServer } from "./server.js";
+export { createServer, NON_OBJECT_SCHEMA_WRAPPER_KEY } from "./server.js";
 export type { TaskState, TaskStatus } from "./tasks/index.js";
 // Tasks
 export { generateTaskId, InMemoryTaskStore, taskStore } from "./tasks/index.js";
@@ -52,7 +68,7 @@ export {
 } from "./tasks/sse-bridge.js";
 export type { ToolAnnotations, ToolContext, ToolResult, ToolSpec } from "./tools/index.js";
 // Tool authoring
-export { defineTool, globalRegistry, ToolRegistry } from "./tools/index.js";
+export { applyFieldGlosses, defineTool, globalRegistry, ToolRegistry } from "./tools/index.js";
 export { HttpTransport } from "./transport/http.js";
 export type { HttpRequestContext } from "./transport/request-context.js";
 export { httpRequestContext } from "./transport/request-context.js";

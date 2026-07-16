@@ -58,4 +58,22 @@ export class IdempotencyCache<T = unknown> {
   }
 }
 
+/**
+ * ADR-A4-shaped idempotency key: `<pkg>/<version>/<tool>/<sha256(input)>`.
+ * Exposed to tools via ToolContext.getIdempotencyKey() (Story 4.5) — distinct from the
+ * internal LRU cache key above (IdempotencyCache.computeKey), which stays unchanged for
+ * cache-dedup correctness. This is a full (untruncated) sha256 hex digest, matching the
+ * ADR's documented format literally.
+ */
+export function buildIdempotencyKeyHeader(
+  pkg: string,
+  version: string,
+  toolName: string,
+  input: unknown,
+): string {
+  const normalized = JSON.stringify(input, Object.keys(input as object).sort());
+  const hash = createHash("sha256").update(normalized).digest("hex");
+  return `${pkg}/${version}/${toolName}/${hash}`;
+}
+
 export const idempotencyCache = new IdempotencyCache();

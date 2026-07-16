@@ -3,8 +3,13 @@
  * All output goes to stderr. Follows pino v10 API.
  *
  * Allowed log fields (AC2): tool, product, transport, upstream_status, upstream_latency_ms,
- * mcp_method, correlationId, level, time, msg, err, pid, hostname.
- * Fields outside this list are silently dropped.
+ * mcp_method, correlationId, sessionId, method, path, status, latencyMs,
+ * declaredLength, receivedBytes, bodyLimit, level, time, msg, err, pid,
+ * hostname. Fields outside this list are silently dropped.
+ *
+ * method/path/status/latencyMs (Story 3.3, audit G2): the HTTP access-log line in
+ * transport/http.ts always emitted them, but they were typed in LogContext without
+ * ever being allow-listed — every access log shipped without its four core fields.
  *
  * Credential patterns (AC3): any value matching *password*, *token*, *secret*, *refresh*
  * replaced with ***<last-4>.
@@ -20,6 +25,13 @@ const ALLOWED_FIELDS = new Set([
   "mcp_method",
   "correlationId",
   "sessionId",
+  "method",
+  "path",
+  "status",
+  "latencyMs",
+  "declaredLength",
+  "receivedBytes",
+  "bodyLimit",
   "level",
   "time",
   "msg",
@@ -62,6 +74,10 @@ export interface LogContext {
   path?: string;
   status?: number;
   latencyMs?: number;
+  // POST /mcp body-limit diagnostics (Story 3.2, audit S2)
+  declaredLength?: number;
+  receivedBytes?: number;
+  bodyLimit?: number;
 }
 
 export class Logger {

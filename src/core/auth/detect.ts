@@ -5,6 +5,7 @@
 import { DeviceFlowAdapter } from "./device-flow.js";
 import { EmailPasswordAdapter } from "./email-password.js";
 import { OpenIdAdapter } from "./openid.js";
+import { ServiceAccountAdapter } from "./service-account.js";
 import type { AuthAdapter } from "./session.js";
 
 export class AuthConfigError extends Error {
@@ -22,6 +23,13 @@ export interface AuthEnv {
   MCP_OPENID_CLIENT_ID?: string;
   MCP_OPENID_REFRESH_TOKEN?: string;
   MCP_API_BASE_URL?: string;
+  // Service-account flow (OAuth2 client_credentials, ADR-A2 / FR-5..8)
+  MCP_SVC_TOKEN_URL?: string;
+  MCP_SVC_CLIENT_ID?: string;
+  MCP_SVC_CLIENT_SECRET?: string;
+  MCP_SVC_SCOPE?: string;
+  // Inbound Bearer introspection (RFC 7662, Story 2.3) — reuses the client id/secret above
+  MCP_SVC_INTROSPECT_URL?: string;
 }
 
 export function detectAuthAdapter(env: AuthEnv = process.env as AuthEnv): AuthAdapter | null {
@@ -38,6 +46,43 @@ export function detectAuthAdapter(env: AuthEnv = process.env as AuthEnv): AuthAd
   const hasIssuer = Boolean(env.MCP_OPENID_ISSUER);
   const hasClientId = Boolean(env.MCP_OPENID_CLIENT_ID);
   const hasRefreshToken = Boolean(env.MCP_OPENID_REFRESH_TOKEN);
+
+  // Service-account flow (ADR-A2): all three of token URL + client id + secret required.
+  const hasSvcTokenUrl = Boolean(env.MCP_SVC_TOKEN_URL);
+  const hasSvcClientId = Boolean(env.MCP_SVC_CLIENT_ID);
+  const hasSvcClientSecret = Boolean(env.MCP_SVC_CLIENT_SECRET);
+  const hasSvcAny = hasSvcTokenUrl || hasSvcClientId || hasSvcClientSecret;
+  const hasSvcFlow = hasSvcTokenUrl && hasSvcClientId && hasSvcClientSecret;
+
+  // Conflict: service_account is mutually exclusive with the user-context flows.
+  if (hasSvcAny && (hasEmail || hasPassword || hasIssuer || hasClientId || hasRefreshToken)) {
+    throw new AuthConfigError(
+      "Auth config conflict: service-account vars (MCP_SVC_*) cannot be combined with " +
+        "email/password or OpenID vars. Configure exactly one auth flow. " +
+        "Service account: MCP_SVC_TOKEN_URL + MCP_SVC_CLIENT_ID + MCP_SVC_CLIENT_SECRET (+ optional MCP_SVC_SCOPE).",
+    );
+  }
+
+  // Service account: route to ServiceAccountAdapter; fail-fast on a partial set.
+  if (hasSvcAny) {
+    if (!hasSvcFlow) {
+      const missing = [
+        !hasSvcTokenUrl && "MCP_SVC_TOKEN_URL",
+        !hasSvcClientId && "MCP_SVC_CLIENT_ID",
+        !hasSvcClientSecret && "MCP_SVC_CLIENT_SECRET",
+      ].filter(Boolean);
+      throw new AuthConfigError(
+        `Incomplete service-account config: ${missing.join(", ")} must be set ` +
+          "(MCP_SVC_TOKEN_URL + MCP_SVC_CLIENT_ID + MCP_SVC_CLIENT_SECRET; MCP_SVC_SCOPE optional).",
+      );
+    }
+    return new ServiceAccountAdapter({
+      tokenUrl: env.MCP_SVC_TOKEN_URL!,
+      clientId: env.MCP_SVC_CLIENT_ID!,
+      clientSecret: env.MCP_SVC_CLIENT_SECRET!,
+      ...(env.MCP_SVC_SCOPE ? { scope: env.MCP_SVC_SCOPE } : {}),
+    });
+  }
 
   // Email/password flow requires BOTH vars.
   // MCP_AUTH_EMAIL alone (no password, no OpenID vars) signals "auto-discovery" mode:
