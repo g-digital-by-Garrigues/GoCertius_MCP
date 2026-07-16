@@ -1,6 +1,6 @@
 {
   "name": "@g-digital/mcp-gocertius",
-  "version": "1.3.4",
+  "version": "1.4.0",
   "description": "MCP server for GoCertius: certified evidence, dossiers, notifications and chats via AI agents.",
   "mcpName": "io.github.g-digital-by-Garrigues/gocertius",
   "license": "MIT",
