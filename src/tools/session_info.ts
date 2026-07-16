@@ -11,8 +11,7 @@ import { defineTool } from "../core/index.js";
 export const session_info = defineTool({
   name: "session_info",
   description:
-    "Returns the authenticated user's session info including userId, session type (Password or OpenId), " +
-    "and for OpenId sessions: issuer, clientId, and scopes. " +
+    "Returns the authenticated user's session info including userId and session type (Password or UserKey). " +
     "Use this to retrieve the userId (UUID) required by case_file_list and other user-scoped operations. " +
     "Prerequisites: a valid session (call session_login first if needed). " +
     "Example: session_info() → { userId: '...uuid...', type: 'Password' }",

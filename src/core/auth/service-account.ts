@@ -1,6 +1,6 @@
 /**
  * Service-account auth adapter (OAuth2 client_credentials) — ADR-A2, FR-5..8.
- * Third peer of EmailPasswordAdapter / OpenIdAdapter on the AuthSession port.
+ * Peer of EmailPasswordAdapter / UserKeyAdapter on the AuthSession port.
  * POST {tokenUrl} (form-encoded, HTTP Basic) → { access_token, expires_in }.
  *
  * Folds the legacy Okta client_credentials flow onto the suite port. Caching,

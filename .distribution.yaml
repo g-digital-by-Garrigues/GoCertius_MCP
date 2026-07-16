@@ -109,7 +109,7 @@ tools:
   - name: chat_certificate_get
     description: "Retrieves the certificate of a certified chat. Requires: chat_certificate_create → certificate id, chat_create → chatId, case_file_create → caseFileId. Returns documentUrl when status reaches CERTIFIED. Poll until CERTIFIED before using documentUrl."
   - name: session_login
-    description: "Authenticates with GoCertius to obtain a session JWT. Takes NO parameters — credentials are read from the server environment (MCP_AUTH_EMAIL plus MCP_AUTH_PASSWORD, or the OpenID Connect variables). For OpenID accounts this starts an Azure AD device flow: the first call returns a browser link + code to approve in Microsoft Authenticator, then call again to finish. The MCP server manages authentication automatically; call this only if you hit 401 errors."
+    description: "Authenticates with GoCertius to obtain a session JWT. Takes NO parameters — credentials are read from the server environment: MCP_AUTH_USER_KEY (a long-lived user key, exchanged automatically for a session token) or MCP_AUTH_EMAIL plus MCP_AUTH_PASSWORD. The MCP server manages authentication automatically; call this only if you hit 401 errors."
   - name: session_info
     description: "Retrieves information about the current authenticated session including userId, account, and token expiry. Use to verify who is authenticated or check session validity. No required parameters."
   - name: evidence_upload

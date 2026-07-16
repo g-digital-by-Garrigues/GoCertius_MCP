@@ -10,7 +10,7 @@ Visit [https://www.gocertius.io](https://www.gocertius.io) to create an account 
 
 You will need either:
 - **Email + password** (Flow 1 — interactive login), or
-- **OpenID Connect refresh token** (Flow 2 — for automated / CI use)
+- **User key** (Flow 2 — long-lived key for automated / headless use)
 
 ---
 
@@ -38,16 +38,14 @@ Add this block inside `"mcpServers"`:
 
 Replace `your-email@example.com` and `your-password` with your real credentials.
 
-### OpenID Connect (Flow 2 — no password in config)
+### User key (Flow 2 — no password in config)
 
 ```json
 "gocertius": {
   "command": "npx",
   "args": ["-y", "@g-digital/mcp-gocertius"],
   "env": {
-    "MCP_OPENID_ISSUER": "https://your-tenant.auth.example.com",
-    "MCP_OPENID_CLIENT_ID": "your-client-id",
-    "MCP_OPENID_REFRESH_TOKEN": "your-refresh-token"
+    "MCP_AUTH_USER_KEY": "your-user-key"
   }
 }
 ```
