@@ -1,6 +1,19 @@
 // SSRF-safe file downloader (STR-E13-01).
 // Refuses URLs that resolve to private/internal addresses, caps download time
 // and size, and never follows redirects (a redirect could bypass the IP check).
+//
+// KNOWN LIMITATION — DNS TOCTOU (Story 3.3, audit S4): the private-IP check
+// resolves the hostname with lookup() below, but the subsequent fetch() call
+// re-resolves it independently. A DNS answer that changes between the two
+// resolutions (attacker-controlled record with TTL 0: first answer public,
+// second answer private) can bypass the check. The standard mitigation is to
+// PIN the validated IP for the actual connection — e.g. an undici Agent with a
+// custom connect/lookup that only dials the already-vetted address. That is
+// deliberately DEFERRED: mcp-core ships with a strict no-runtime-dependencies
+// constraint (NFR1) and the bare global fetch exposes no lookup/connect hook
+// without adding one. Revisit if the no-deps constraint is ever relaxed or
+// Node exposes a native dispatcher hook. Until then the residual risk requires
+// an attacker who both supplies the URL and controls its DNS zone.
 
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
