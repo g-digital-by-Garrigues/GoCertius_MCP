@@ -4,7 +4,6 @@
 // Auth
 export { AuthConfigError, detectAuthAdapter } from "./auth/detect.js";
 export { EmailPasswordAdapter } from "./auth/email-password.js";
-export { OpenIdAdapter } from "./auth/openid.js";
 export type { AuthAdapter, AuthContext } from "./auth/session.js";
 export { AuthSession, createAuthSession } from "./auth/session.js";
 export type { McpErrorContent, ToolErrorOpts } from "./errors/index.js";

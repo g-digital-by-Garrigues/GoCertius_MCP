@@ -1,12 +1,11 @@
 /**
- * Device flow token store for Azure AD interactive auth (E3-03 extension).
+ * In-process session-token store (E3-03 extension).
  *
- * Used when MCP_OPENID_ISSUER + MCP_OPENID_CLIENT_ID are set but
- * MCP_OPENID_REFRESH_TOKEN is absent — this triggers the OAuth 2.0
- * Device Authorization Grant (RFC 8628).
- *
- * session_login tool drives the flow via MCP elicitation; this store
- * bridges the result back to the AuthSession middleware.
+ * Holds a JWT for the process lifetime and bridges it to the AuthSession
+ * middleware. Two producers seed it:
+ *  - `MCP_AUTH_JWT` — a pre-seeded JWT (server.ts seeds it at startup).
+ *  - the `session_login` tool — after an email/password login it stores the
+ *    resulting session JWT here for subsequent tool calls.
  */
 import type { AuthAdapter, AuthContext } from "./session.js";
 
@@ -32,17 +31,16 @@ export const deviceFlowStore = {
 };
 
 /**
- * Auth adapter for Azure AD device flow.
- * Returns the stored JWT from deviceFlowStore when available.
- * Throws with a user-facing message when session_login has not been called yet.
+ * Auth adapter that serves the JWT held in deviceFlowStore.
+ * Used for a pre-seeded `MCP_AUTH_JWT` and for the JWT stored by `session_login`.
+ * Throws a user-facing message when no session has been established yet.
  */
 export class DeviceFlowAdapter implements AuthAdapter {
   async login(): Promise<AuthContext> {
     const stored = deviceFlowStore.get();
     if (stored) return stored;
     throw new Error(
-      "Azure AD authentication required. " +
-        "Please call the 'session_login' tool to sign in interactively.",
+      "No active session. Please call the 'session_login' tool to authenticate.",
     );
   }
 

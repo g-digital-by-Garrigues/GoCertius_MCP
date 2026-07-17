@@ -190,7 +190,7 @@ export function missingCredentialsError(operation: string): McpErrorContent {
     remediation:
       "Configure authentication before calling this tool — service account " +
       "(MCP_SVC_TOKEN_URL + MCP_SVC_CLIENT_ID + MCP_SVC_CLIENT_SECRET) or user credentials " +
-      "(MCP_AUTH_EMAIL + MCP_AUTH_PASSWORD, or MCP_OPENID_*), then retry.",
+      "(MCP_AUTH_EMAIL + MCP_AUTH_PASSWORD, or MCP_AUTH_USER_KEY), then retry.",
   });
 }
 

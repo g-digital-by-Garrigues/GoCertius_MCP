@@ -35,7 +35,7 @@ export interface ToolMetrics {
     attrs?: { pollable?: boolean; transport?: string },
   ): void;
   recordUpstreamLatency(operation: string, latencyMs: number, statusCode: number): void;
-  recordAuthRefresh(flow: "email-password" | "openid"): void;
+  recordAuthRefresh(flow: "email-password" | "user-key" | "service-account"): void;
 }
 
 // ── No-op ──────────────────────────────────────────────────────────────────────
@@ -124,7 +124,7 @@ class OtelMetrics implements ToolMetrics {
     })();
   }
 
-  recordAuthRefresh(flow: "email-password" | "openid"): void {
+  recordAuthRefresh(flow: "email-password" | "user-key" | "service-account"): void {
     void (async () => {
       const api = await getOtelApi();
       if (api) {
