@@ -41,6 +41,7 @@ import { chat_certificate_create } from "./tools/chat_certificate_create.js";
 import { chat_certificate_get } from "./tools/chat_certificate_get.js";
 import { session_login } from "./tools/session_login.js";
 import { session_info } from "./tools/session_info.js";
+import { profile_get } from "./tools/profile_get.js";
 import { evidence_upload } from "./tools/evidence_upload.js";
 
 await createServer({
@@ -86,6 +87,7 @@ chat_certificate_create,
 chat_certificate_get,
 session_login,
 session_info,
+profile_get,
 evidence_upload,
   ],
 });

@@ -70,9 +70,9 @@ docker run --rm -i \
 
 | Variable | Required | Description |
 |---|---|---|
-| `MCP_AUTH_EMAIL` | One of flow 1 or 2 | Your account email |
-| `MCP_AUTH_PASSWORD` | One of flow 1 or 2 | Your account password |
-| `MCP_AUTH_USER_KEY` | One of flow 1 or 2 | Long-lived user key (exchanged for a session token) |
+| `MCP_AUTH_EMAIL` | One of the two flows | Your account email |
+| `MCP_AUTH_PASSWORD` | One of the two flows | Your account password |
+| `MCP_AUTH_USER_KEY` | One of the two flows | Long-lived user key (exchanged for a session token) |
 | `MCP_AUTH_JWT` | Optional | Pre-seeded JWT (skips interactive login) |
 | `MCP_OTEL_ENABLED` | Optional | Set to `true` to enable OpenTelemetry tracing |
 | `MCP_API_BASE_URL` | Optional | Override upstream API base URL |
@@ -91,7 +91,7 @@ See [docs/agent-prompts.md](docs/agent-prompts.md) for end-to-end prompt example
 
 ## Available Tools
 
-This server exposes **40 tools**:
+This server exposes **41 tools**:
 
 | Tool | Description |
 |------|-------------|
@@ -133,7 +133,8 @@ This server exposes **40 tools**:
 | `chat_certificate_create` | Creates a certificate of a range of messages from a certified chat. Requires: chat_create → chatId, personal caseFileId, chat_get → registeredAt, and messages already present in the Telegram channel. Generate a UUID v4 for `id`. Do not use createdAt as a substitute for registeredAt; if registeredAt is missing, the chat is not ready to certify. Specify chatMessagesFrom and chatMessagesTo as ISO timestamps (chatMessagesFrom must be AFTER registeredAt). ASYNC: poll chat_certificate_get until status === CERTIFIED. |
 | `chat_certificate_get` | Retrieves the certificate of a certified chat. Requires: chat_certificate_create → certificate id, chat_create → chatId, case_file_create → caseFileId. Returns documentUrl when status reaches CERTIFIED. Poll until CERTIFIED before using documentUrl. |
 | `session_login` | Authenticates with GoCertius to obtain a session JWT. Takes NO parameters — credentials are read from the server environment: MCP_AUTH_USER_KEY (a long-lived user key, exchanged automatically for a session token) or MCP_AUTH_EMAIL plus MCP_AUTH_PASSWORD. The MCP server manages authentication automatically; call this only if you hit 401 errors. |
-| `session_info` | Retrieves information about the current authenticated session including userId, account, and token expiry. Use to verify who is authenticated or check session validity. No required parameters. |
+| `session_info` | Retrieves information about the current authenticated session including userId, account, and token expiry. Use to verify who is authenticated or check session validity. Works on both auth flows: on a user-key deployment (MCP_AUTH_USER_KEY, no email configured) it resolves identity via GET /profile; with MCP_AUTH_EMAIL it queries /session-info. If you only need the userId, prefer profile_get — it is the canonical source (`id`) and also returns companyId and defaultCaseFileId. No required parameters. |
+| `profile_get` | Returns the authenticated user's own profile. Works on EVERY auth flow (user key or email/password) because it identifies the caller from the session token alone — no email needed. Its `id` field IS your userId (UUID): the value required by case_file_list and every /users/{userId}/... operation. Prefer this over session_info when you need the userId, and it is the ONLY way to obtain it on a user-key deployment (MCP_AUTH_USER_KEY), where no email is configured. Also returns companyId (needed to subscribe to the notifications SSE stream) and defaultCaseFileId (the personal case file — the one chats must use). No parameters. |
 | `evidence_upload` | Uploads a local file as evidence in one step: computes its SHA-256, registers the evidence record (custodyType INTERNAL = GoCertius stores the file), and uploads the bytes to S3 — no manual hashing or PUT needed. Internally this follows the required GoCertius sequence: create INTERNAL evidence → receive uploadFileUrl (presigned S3 URL) → PUT file bytes → return uploaded:true. Requires: case_file_create → caseFileId, evidence_group_create → evidenceGroupId. Provide EXACTLY ONE of `filePath` (absolute local path, stdio/local mode only) or `contentBase64` (base64-encoded file content, ~10 MB max). Use evidence_upload when the file is on the local machine; use evidence_create when you already have the SHA-256 hash, need to inspect/use uploadFileUrl manually, or have a public fileUrl. After this tool succeeds, verify with evidence_get/evidence_list and only then call evidence_seal. If this tool fails before returning an evidence id, check evidence_list before retrying; if retrying manually, use evidence_create with a fresh UUID. Local files must be under 1 GiB. |
 
 ## Coexistence

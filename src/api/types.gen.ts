@@ -139,6 +139,23 @@ export type ShowSessionInfoControllerRunResponses = {
 
 export type ShowSessionInfoControllerRunResponse = ShowSessionInfoControllerRunResponses[keyof ShowSessionInfoControllerRunResponses];
 
+export type UpdatePasswordControllerChangePasswordData = {
+    body: {
+        password: string;
+        newPassword: string;
+        newPasswordConfirmation: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/profile/password';
+};
+
+export type UpdatePasswordControllerChangePasswordResponses = {
+    204: void;
+};
+
+export type UpdatePasswordControllerChangePasswordResponse = UpdatePasswordControllerChangePasswordResponses[keyof UpdatePasswordControllerChangePasswordResponses];
+
 export type UpdatePasswordWithPasswordTokenControllerRunData = {
     body: {
         password: string;
@@ -3184,3 +3201,216 @@ export type UpdateNotificationRequestCaseFileIdControllerRunData = {
 export type UpdateNotificationRequestCaseFileIdControllerRunResponses = {
     200: unknown;
 };
+
+export type ListUsersControllerRunData = {
+    body?: never;
+    path: {
+        companyId: string;
+    };
+    query?: {
+        filter?: {
+            email?: string;
+            partialEmail?: string;
+            emails?: Array<string>;
+            ids?: Array<string>;
+            search?: string;
+            role?: 'admin' | 'manager' | 'normal';
+            roles?: Array<'admin' | 'manager' | 'normal'>;
+            status?: 'pending' | 'active' | 'disabled' | 'cancelled' | 'banned';
+            statuses?: Array<'pending' | 'active' | 'disabled' | 'cancelled' | 'banned'>;
+            statusNot?: 'pending' | 'active' | 'disabled' | 'cancelled' | 'banned';
+            statusesNot?: Array<'pending' | 'active' | 'disabled' | 'cancelled' | 'banned'>;
+            companyId?: string;
+            id?: string;
+        };
+        order?: {
+            createdAt?: 'ASC' | 'DESC';
+            confirmedAt?: 'ASC' | 'DESC';
+            lastName?: 'ASC' | 'DESC';
+        };
+        page?: {
+            number: number;
+            size: number;
+        };
+    };
+    url: '/companies/{companyId}/users';
+};
+
+export type ListUsersControllerRunResponses = {
+    200: {
+        data?: Array<{
+            id: string;
+            email: string;
+            status: string;
+            role: string;
+            firstName: string;
+            lastName: string;
+            confirmedAt?: string;
+            companyId: string;
+        }>;
+        meta?: {
+            totalElements?: number;
+        };
+    };
+};
+
+export type ListUsersControllerRunResponse = ListUsersControllerRunResponses[keyof ListUsersControllerRunResponses];
+
+export type ShowProfileControllerRunData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/profile';
+};
+
+export type ShowProfileControllerRunResponses = {
+    200: {
+        id: string;
+        email: string;
+        status: string;
+        role: string;
+        firstName: string;
+        lastName: string;
+        confirmedAt?: string;
+        companyId: string;
+        companyVerified: boolean;
+        companyCorporate: boolean;
+        companyName?: string;
+        defaultCaseFileId?: string;
+        language: string;
+        onboardingShown: boolean;
+        certifierStripeCustomerExists: boolean;
+        loginInfo: {
+            type: 'Password' | 'OpenId';
+            issuer?: string;
+            clientId?: string;
+        };
+        permit: {
+            evidences: boolean;
+            idVerifications: boolean;
+            notifications: boolean;
+        };
+    };
+};
+
+export type ShowProfileControllerRunResponse = ShowProfileControllerRunResponses[keyof ShowProfileControllerRunResponses];
+
+export type UpdateProfileControllerRunData = {
+    body: {
+        firstName?: string;
+        lastName?: string;
+        language?: 'en_GB' | 'es_ES';
+        onboardingShown?: boolean;
+    };
+    path?: never;
+    query?: never;
+    url: '/profile';
+};
+
+export type UpdateProfileControllerRunResponses = {
+    204: void;
+};
+
+export type UpdateProfileControllerRunResponse = UpdateProfileControllerRunResponses[keyof UpdateProfileControllerRunResponses];
+
+export type ShowUserControllerRunData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}';
+};
+
+export type ShowUserControllerRunResponses = {
+    200: {
+        id: string;
+        email: string;
+        status: string;
+        role: string;
+        firstName: string;
+        lastName: string;
+        confirmedAt?: string;
+        companyId: string;
+        permit: {
+            evidences: boolean;
+            notifications: boolean;
+            idVerifications: boolean;
+        };
+    };
+};
+
+export type ShowUserControllerRunResponse = ShowUserControllerRunResponses[keyof ShowUserControllerRunResponses];
+
+export type UpdateUserStatusControllerRunData = {
+    body: {
+        status: 'pending' | 'active' | 'disabled' | 'cancelled' | 'banned';
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}';
+};
+
+export type UpdateUserStatusControllerRunErrors = {
+    409: {
+        id?: string;
+        code?: 'CanNotUpdatePendingUser';
+    };
+};
+
+export type UpdateUserStatusControllerRunError = UpdateUserStatusControllerRunErrors[keyof UpdateUserStatusControllerRunErrors];
+
+export type UpdateUserStatusControllerRunResponses = {
+    204: void;
+};
+
+export type UpdateUserStatusControllerRunResponse = UpdateUserStatusControllerRunResponses[keyof UpdateUserStatusControllerRunResponses];
+
+export type UpdateAllUserPermitsByCompanyControllerRunData = {
+    body: {
+        evidences?: boolean;
+        idVerifications?: boolean;
+        notifications?: boolean;
+    };
+    path: {
+        companyId: string;
+    };
+    query?: never;
+    url: '/companies/{companyId}/all-user-permits';
+};
+
+export type UpdateAllUserPermitsByCompanyControllerRunResponses = {
+    204: void;
+};
+
+export type UpdateAllUserPermitsByCompanyControllerRunResponse = UpdateAllUserPermitsByCompanyControllerRunResponses[keyof UpdateAllUserPermitsByCompanyControllerRunResponses];
+
+export type UpdateUserPermitControllerRunData = {
+    body: {
+        evidences?: boolean;
+        idVerifications?: boolean;
+        notifications?: boolean;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/permit';
+};
+
+export type UpdateUserPermitControllerRunErrors = {
+    409: {
+        id?: string;
+        code?: 'CanNotUpdatePendingUser';
+    };
+};
+
+export type UpdateUserPermitControllerRunError = UpdateUserPermitControllerRunErrors[keyof UpdateUserPermitControllerRunErrors];
+
+export type UpdateUserPermitControllerRunResponses = {
+    204: void;
+};
+
+export type UpdateUserPermitControllerRunResponse = UpdateUserPermitControllerRunResponses[keyof UpdateUserPermitControllerRunResponses];
