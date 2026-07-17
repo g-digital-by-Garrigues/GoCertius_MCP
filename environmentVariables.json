@@ -31,16 +31,22 @@
       "name": "MCP_API_BASE_URL"
     },
     {
-      "description": "Your GoCertius account email (Flow 1). Configure exactly one of Flow 1, 2, or 3.",
+      "description": "Your GoCertius account email. Configure exactly one flow; do not combine it with the others.",
       "isRequired": false,
       "isSecret": false,
       "name": "MCP_AUTH_EMAIL"
     },
     {
-      "description": "Your GoCertius account password (Flow 1, email/password accounts) (See https://www.gocertius.io for credential acquisition.)",
+      "description": "Your GoCertius account password. (See https://www.gocertius.io for credential acquisition.)",
       "isRequired": false,
       "isSecret": true,
       "name": "MCP_AUTH_PASSWORD"
+    },
+    {
+      "description": "Long-lived GoCertius user key, exchanged automatically for a short-lived session token. Use it for headless or automated access instead of an account password. Configure exactly one flow; do not combine it with the others. (See https://www.gocertius.io for credential acquisition.)",
+      "isRequired": false,
+      "isSecret": true,
+      "name": "MCP_AUTH_USER_KEY"
     },
     {
       "description": "Interface the HTTP transport binds to. Default 127.0.0.1 (localhost only). Set 0.0.0.0 to expose on all interfaces (containers do this automatically).",
@@ -61,52 +67,22 @@
       "name": "MCP_HTTP_PUBLIC"
     },
     {
-      "description": "OpenID Connect client ID (Flow 2)",
-      "isRequired": false,
-      "isSecret": false,
-      "name": "MCP_OPENID_CLIENT_ID"
-    },
-    {
-      "description": "OpenID Connect issuer URL (Flow 2)",
-      "isRequired": false,
-      "isSecret": false,
-      "name": "MCP_OPENID_ISSUER"
-    },
-    {
-      "description": "OpenID Connect refresh token (Flow 2) (See https://www.gocertius.io for credential acquisition.)",
-      "isRequired": false,
-      "isSecret": true,
-      "name": "MCP_OPENID_REFRESH_TOKEN"
-    },
-    {
-      "description": "OAuth2 client_credentials client ID (Flow 3)",
+      "description": "Client ID this server presents to the introspection endpoint above (its resource-server credentials). Only needed alongside MCP_SVC_INTROSPECT_URL; it does not authenticate you to GoCertius.",
       "isRequired": false,
       "isSecret": false,
       "name": "MCP_SVC_CLIENT_ID"
     },
     {
-      "description": "OAuth2 client_credentials client secret (Flow 3) (See https://www.gocertius.io for credential acquisition.)",
+      "description": "Client secret this server presents to the introspection endpoint above (its resource-server credentials). Only needed alongside MCP_SVC_INTROSPECT_URL; it does not authenticate you to GoCertius. (See https://www.gocertius.io for credential acquisition.)",
       "isRequired": false,
       "isSecret": true,
       "name": "MCP_SVC_CLIENT_SECRET"
     },
     {
-      "description": "RFC 7662 token introspection URL for inbound Bearer verification in HTTP mode. Opt-in — reuses the Flow 3 client id/secret above as the resource-server credentials.",
+      "description": "RFC 7662 token introspection URL for inbound Bearer verification in HTTP mode. Opt-in, and required when MCP_HTTP_PUBLIC=true. Leave empty for stdio (local) use.",
       "isRequired": false,
       "isSecret": false,
       "name": "MCP_SVC_INTROSPECT_URL"
-    },
-    {
-      "description": "Optional OAuth2 scope for the service-account token request (Flow 3)",
-      "isRequired": false,
-      "isSecret": false,
-      "name": "MCP_SVC_SCOPE"
-    },
-    {
-      "description": "Token endpoint URL for the OAuth2 client_credentials flow (Flow 3)",
-      "isRequired": false,
-      "isSecret": false,
-      "name": "MCP_SVC_TOKEN_URL"
     },
     {
       "description": "HTTP port when running in hosted (HTTP) mode; ignored in stdio mode",

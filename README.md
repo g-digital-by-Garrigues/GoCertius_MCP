@@ -215,28 +215,22 @@ docker run --rm -i \
 | `MCP_ALLOWED_HOSTS` | No | No | Comma-separated allowed Host headers. Empty = Host validation disabled (default). When set, requests with a Host outside the list are rejected. |
 | `MCP_ALLOWED_ORIGINS` | No | No | Comma-separated allowed browser Origins (DNS-rebinding defense). Empty = reject any request carrying an Origin header; non-browser clients (CLI/SDK) send no Origin and are always allowed. Use '*' to allow all. |
 | `MCP_API_BASE_URL` | No | No | Overrides the default upstream API host for every tool |
-| `MCP_AUTH_EMAIL` | No | No | Your GoCertius account email (Flow 1). Configure exactly one of Flow 1, 2, or 3. |
-| `MCP_AUTH_PASSWORD` | No | Yes | Your GoCertius account password (Flow 1, email/password accounts) (See https://www.gocertius.io for credential acquisition.) |
+| `MCP_AUTH_EMAIL` | No | No | Your GoCertius account email. Configure exactly one flow; do not combine it with the others. |
+| `MCP_AUTH_PASSWORD` | No | Yes | Your GoCertius account password. (See https://www.gocertius.io for credential acquisition.) |
+| `MCP_AUTH_USER_KEY` | No | Yes | Long-lived GoCertius user key, exchanged automatically for a short-lived session token. Use it for headless or automated access instead of an account password. Configure exactly one flow; do not combine it with the others. (See https://www.gocertius.io for credential acquisition.) |
 | `MCP_HTTP_HOST` | No | No | Interface the HTTP transport binds to. Default 127.0.0.1 (localhost only). Set 0.0.0.0 to expose on all interfaces (containers do this automatically). |
 | `MCP_HTTP_MAX_BODY_BYTES` | No | No | Maximum accepted POST /mcp request-body size in bytes (default 16777216 = 16 MiB — sized so base64 file uploads within the documented tool limits fit). Oversized requests get a 413 JSON-RPC error before/while reading — closes a memory-exhaustion DoS vector in public deployments. Note: base64 file sources are capped by this limit BEFORE MCP_FILE_MAX_BYTES applies. |
 | `MCP_HTTP_PUBLIC` | No | No | Set to "true" for public/multi-tenant deployments. Activates Host validation and refuses to start unless (1) MCP_ALLOWED_ORIGINS or MCP_ALLOWED_HOSTS is set AND (2) inbound Bearer introspection is configured (MCP_SVC_INTROSPECT_URL + MCP_SVC_CLIENT_ID/SECRET) or MCP_ALLOW_UNVERIFIED_BEARER=true is set explicitly (fail-closed). |
-| `MCP_OPENID_CLIENT_ID` | No | No | OpenID Connect client ID (Flow 2) |
-| `MCP_OPENID_ISSUER` | No | No | OpenID Connect issuer URL (Flow 2) |
-| `MCP_OPENID_REFRESH_TOKEN` | No | Yes | OpenID Connect refresh token (Flow 2) (See https://www.gocertius.io for credential acquisition.) |
-| `MCP_SVC_CLIENT_ID` | No | No | OAuth2 client_credentials client ID (Flow 3) |
-| `MCP_SVC_CLIENT_SECRET` | No | Yes | OAuth2 client_credentials client secret (Flow 3) (See https://www.gocertius.io for credential acquisition.) |
-| `MCP_SVC_INTROSPECT_URL` | No | No | RFC 7662 token introspection URL for inbound Bearer verification in HTTP mode. Opt-in — reuses the Flow 3 client id/secret above as the resource-server credentials. |
-| `MCP_SVC_SCOPE` | No | No | Optional OAuth2 scope for the service-account token request (Flow 3) |
-| `MCP_SVC_TOKEN_URL` | No | No | Token endpoint URL for the OAuth2 client_credentials flow (Flow 3) |
+| `MCP_SVC_CLIENT_ID` | No | No | Client ID this server presents to the introspection endpoint above (its resource-server credentials). Only needed alongside MCP_SVC_INTROSPECT_URL; it does not authenticate you to GoCertius. |
+| `MCP_SVC_CLIENT_SECRET` | No | Yes | Client secret this server presents to the introspection endpoint above (its resource-server credentials). Only needed alongside MCP_SVC_INTROSPECT_URL; it does not authenticate you to GoCertius. (See https://www.gocertius.io for credential acquisition.) |
+| `MCP_SVC_INTROSPECT_URL` | No | No | RFC 7662 token introspection URL for inbound Bearer verification in HTTP mode. Opt-in, and required when MCP_HTTP_PUBLIC=true. Leave empty for stdio (local) use. |
 | `PORT` | No | No | HTTP port when running in hosted (HTTP) mode; ignored in stdio mode |
 
 | Variable | Required | Description |
 |---|---|---|
-| `MCP_AUTH_EMAIL` | One of flow 1 or 2 | Your account email |
-| `MCP_AUTH_PASSWORD` | One of flow 1 or 2 | Your account password |
-| `MCP_OPENID_ISSUER` | One of flow 1 or 2 | OpenID Connect issuer URL |
-| `MCP_OPENID_CLIENT_ID` | One of flow 1 or 2 | OpenID Connect client ID |
-| `MCP_OPENID_REFRESH_TOKEN` | One of flow 1 or 2 | OpenID Connect refresh token |
+| `MCP_AUTH_EMAIL` | One of the two flows | Your account email |
+| `MCP_AUTH_PASSWORD` | One of the two flows | Your account password |
+| `MCP_AUTH_USER_KEY` | One of the two flows | Long-lived user key (exchanged for a session token) |
 | `MCP_AUTH_JWT` | Optional | Pre-seeded JWT (skips interactive login) |
 | `MCP_OTEL_ENABLED` | Optional | Set to `true` to enable OpenTelemetry tracing |
 | `MCP_API_BASE_URL` | Optional | Override upstream API base URL |
@@ -255,7 +249,7 @@ See [docs/agent-prompts.md](docs/agent-prompts.md) for end-to-end prompt example
 
 ## Available Tools
 
-This server exposes **40 tools**:
+This server exposes **41 tools**:
 
 | Tool | Description |
 |------|-------------|
@@ -296,8 +290,9 @@ This server exposes **40 tools**:
 | `chat_invitation_url` | Returns the Telegram invitation URL for a certified chat. Requires: chat_create → chatId and the personal caseFileId. Do not call while chat_get still shows status `creating`; wait until the chat is registered/active, otherwise the API can answer Chat not found. Share the returned invitationUrl with participants so they can join the certified channel. |
 | `chat_certificate_create` | Creates a certificate of a range of messages from a certified chat. Requires: chat_create → chatId, personal caseFileId, chat_get → registeredAt, and messages already present in the Telegram channel. Generate a UUID v4 for `id`. Do not use createdAt as a substitute for registeredAt; if registeredAt is missing, the chat is not ready to certify. Specify chatMessagesFrom and chatMessagesTo as ISO timestamps (chatMessagesFrom must be AFTER registeredAt). ASYNC: poll chat_certificate_get until status === CERTIFIED. |
 | `chat_certificate_get` | Retrieves the certificate of a certified chat. Requires: chat_certificate_create → certificate id, chat_create → chatId, case_file_create → caseFileId. Returns documentUrl when status reaches CERTIFIED. Poll until CERTIFIED before using documentUrl. |
-| `session_login` | Authenticates with GoCertius to obtain a session JWT. Takes NO parameters — credentials are read from the server environment (MCP_AUTH_EMAIL plus MCP_AUTH_PASSWORD, or the OpenID Connect variables). For OpenID accounts this starts an Azure AD device flow: the first call returns a browser link + code to approve in Microsoft Authenticator, then call again to finish. The MCP server manages authentication automatically; call this only if you hit 401 errors. |
-| `session_info` | Retrieves information about the current authenticated session including userId, account, and token expiry. Use to verify who is authenticated or check session validity. No required parameters. |
+| `session_login` | Authenticates with GoCertius to obtain a session JWT. Takes NO parameters — credentials are read from the server environment: MCP_AUTH_USER_KEY (a long-lived user key, exchanged automatically for a session token) or MCP_AUTH_EMAIL plus MCP_AUTH_PASSWORD. The MCP server manages authentication automatically; call this only if you hit 401 errors. |
+| `session_info` | Retrieves information about the current authenticated session including userId, account, and token expiry. Use to verify who is authenticated or check session validity. Works on both auth flows: on a user-key deployment (MCP_AUTH_USER_KEY, no email configured) it resolves identity via GET /profile; with MCP_AUTH_EMAIL it queries /session-info. If you only need the userId, prefer profile_get — it is the canonical source (`id`) and also returns companyId and defaultCaseFileId. No required parameters. |
+| `profile_get` | Returns the authenticated user's own profile. Works on EVERY auth flow (user key or email/password) because it identifies the caller from the session token alone — no email needed. Its `id` field IS your userId (UUID): the value required by case_file_list and every /users/{userId}/... operation. Prefer this over session_info when you need the userId, and it is the ONLY way to obtain it on a user-key deployment (MCP_AUTH_USER_KEY), where no email is configured. Also returns companyId (needed to subscribe to the notifications SSE stream) and defaultCaseFileId (the personal case file — the one chats must use). No parameters. |
 | `evidence_upload` | Uploads a local file as evidence in one step: computes its SHA-256, registers the evidence record (custodyType INTERNAL = GoCertius stores the file), and uploads the bytes to S3 — no manual hashing or PUT needed. Internally this follows the required GoCertius sequence: create INTERNAL evidence → receive uploadFileUrl (presigned S3 URL) → PUT file bytes → return uploaded:true. Requires: case_file_create → caseFileId, evidence_group_create → evidenceGroupId. Provide EXACTLY ONE of `filePath` (absolute local path, stdio/local mode only) or `contentBase64` (base64-encoded file content, ~10 MB max). Use evidence_upload when the file is on the local machine; use evidence_create when you already have the SHA-256 hash, need to inspect/use uploadFileUrl manually, or have a public fileUrl. After this tool succeeds, verify with evidence_get/evidence_list and only then call evidence_seal. If this tool fails before returning an evidence id, check evidence_list before retrying; if retrying manually, use evidence_create with a fresh UUID. Local files must be under 1 GiB. |
 
 ## Coexistence

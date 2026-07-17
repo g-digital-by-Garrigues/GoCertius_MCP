@@ -1,5 +1,5 @@
 {
-  "node": "@g-digital/n8n-nodes-gocertius",
+  "node": "@g-digital/n8n-nodes-gocertius.gocertius",
   "nodeVersion": "1.0",
   "codexVersion": "1.0",
   "categories": ["Utility"],
