@@ -9,8 +9,10 @@ Get from zero to your first tool call in under 5 minutes.
 Visit [https://www.gocertius.io](https://www.gocertius.io) to create an account or obtain API credentials.
 
 You will need either:
-- **Email + password** (Flow 1 — interactive login), or
-- **User key** (Flow 2 — long-lived key for automated / headless use)
+- **Email + password** — an interactive login, or
+- **User key** — a long-lived key for automated / headless use
+
+Configure one or the other, not both.
 
 ---
 
@@ -38,7 +40,7 @@ Add this block inside `"mcpServers"`:
 
 Replace `your-email@example.com` and `your-password` with your real credentials.
 
-### User key (Flow 2 — no password in config)
+### User key (alternative — no password in config)
 
 ```json
 "gocertius": {

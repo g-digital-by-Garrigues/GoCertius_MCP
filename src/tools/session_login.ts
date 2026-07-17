@@ -9,7 +9,7 @@
 
 import { z } from "zod";
 import { deviceFlowStore } from "../core/auth/device-flow.js";
-import { defineTool } from "../core/index.js";
+import { defineTool, fetchCallerUserId } from "../core/index.js";
 
 const BASE_URL = process.env.MCP_API_BASE_URL ?? "https://api-gocertius.gocertius.io";
 
@@ -66,11 +66,18 @@ async function runUserKeyFlow(userKey: string) {
 
   const expiresAt = jwtExpiryMs(jwt);
   deviceFlowStore.set(jwt, expiresAt);
+
+  // Resolve the userId from GET /profile rather than the JWT `sub` claim: a
+  // user-key session's claim set is not part of any contract we can rely on,
+  // and a silently-undefined userId would break every /users/{userId}/... call
+  // later, far from the cause. /profile.id is the documented source.
+  const userId = await fetchCallerUserId(BASE_URL, jwt);
+
   return {
     authenticated: true,
     flow: "user-key",
     message: "Session is active.",
-    userId: decodeJwtUserId(jwt),
+    userId,
     expiresAt: new Date(expiresAt).toISOString(),
   };
 }

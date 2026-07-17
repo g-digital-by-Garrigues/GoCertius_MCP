@@ -22,12 +22,16 @@ export interface AuthEnv {
   // User-key flow (Epic E14): a single long-lived key exchanged for a session JWT
   MCP_AUTH_USER_KEY?: string;
   MCP_API_BASE_URL?: string;
-  // Service-account flow (OAuth2 client_credentials, ADR-A2 / FR-5..8)
+  // OUTBOUND service-account flow (OAuth2 client_credentials, ADR-A2 / FR-5..8).
+  // MCP_SVC_TOKEN_URL is exclusive to this flow and is what selects it.
   MCP_SVC_TOKEN_URL?: string;
+  MCP_SVC_SCOPE?: string;
+  // SHARED credentials: used by the outbound flow above AND by inbound introspection
+  // below. Never treat them on their own as a service-account flow (STR-E15-04).
   MCP_SVC_CLIENT_ID?: string;
   MCP_SVC_CLIENT_SECRET?: string;
-  MCP_SVC_SCOPE?: string;
-  // Inbound Bearer introspection (RFC 7662, Story 2.3) — reuses the client id/secret above
+  // INBOUND Bearer introspection (RFC 7662, Story 2.3) — a transport concern, not an
+  // auth flow. Required by MCP_HTTP_PUBLIC=true; reuses the client id/secret above.
   MCP_SVC_INTROSPECT_URL?: string;
 }
 
@@ -45,26 +49,34 @@ export function detectAuthAdapter(env: AuthEnv = process.env as AuthEnv): AuthAd
   const hasUserKey = Boolean(env.MCP_AUTH_USER_KEY);
 
   // Service-account flow (ADR-A2): all three of token URL + client id + secret required.
+  //
+  // MCP_SVC_TOKEN_URL is what identifies this flow. MCP_SVC_CLIENT_ID/SECRET are
+  // deliberately NOT part of the test: they are SHARED with inbound RFC 7662
+  // introspection (MCP_SVC_INTROSPECT_URL), which MCP_HTTP_PUBLIC=true requires.
+  // Keying on "any MCP_SVC_* var" made those two concerns collide — configuring
+  // introspection on a gocertius/suite deployment either conflicted with its
+  // email/user-key flow or tripped the incomplete-set check, so the server
+  // refused to start and public HTTP mode was unusable there (STR-E15-04).
   const hasSvcTokenUrl = Boolean(env.MCP_SVC_TOKEN_URL);
   const hasSvcClientId = Boolean(env.MCP_SVC_CLIENT_ID);
   const hasSvcClientSecret = Boolean(env.MCP_SVC_CLIENT_SECRET);
-  const hasSvcAny = hasSvcTokenUrl || hasSvcClientId || hasSvcClientSecret;
   const hasSvcFlow = hasSvcTokenUrl && hasSvcClientId && hasSvcClientSecret;
 
   // Conflict: service_account is mutually exclusive with the user-context flows.
-  if (hasSvcAny && (hasEmail || hasPassword || hasUserKey)) {
+  if (hasSvcTokenUrl && (hasEmail || hasPassword || hasUserKey)) {
     throw new AuthConfigError(
-      "Auth config conflict: service-account vars (MCP_SVC_*) cannot be combined with " +
-        "email/password or user-key vars. Configure exactly one auth flow. " +
-        "Service account: MCP_SVC_TOKEN_URL + MCP_SVC_CLIENT_ID + MCP_SVC_CLIENT_SECRET (+ optional MCP_SVC_SCOPE).",
+      "Auth config conflict: the service-account flow (MCP_SVC_TOKEN_URL) cannot be combined " +
+        "with email/password or user-key vars. Configure exactly one auth flow. " +
+        "Service account: MCP_SVC_TOKEN_URL + MCP_SVC_CLIENT_ID + MCP_SVC_CLIENT_SECRET (+ optional MCP_SVC_SCOPE). " +
+        "Note: MCP_SVC_CLIENT_ID/MCP_SVC_CLIENT_SECRET on their own are fine — they double as " +
+        "inbound introspection credentials (MCP_SVC_INTROSPECT_URL) and do not select this flow.",
     );
   }
 
   // Service account: route to ServiceAccountAdapter; fail-fast on a partial set.
-  if (hasSvcAny) {
+  if (hasSvcTokenUrl) {
     if (!hasSvcFlow) {
       const missing = [
-        !hasSvcTokenUrl && "MCP_SVC_TOKEN_URL",
         !hasSvcClientId && "MCP_SVC_CLIENT_ID",
         !hasSvcClientSecret && "MCP_SVC_CLIENT_SECRET",
       ].filter(Boolean);

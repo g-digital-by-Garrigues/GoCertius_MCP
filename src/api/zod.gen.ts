@@ -63,6 +63,14 @@ export const zShowSessionInfoControllerRunResponse = z.object({
     scope: z.array(z.string()).optional()
 });
 
+export const zUpdatePasswordControllerChangePasswordBody = z.object({
+    password: z.string(),
+    newPassword: z.string(),
+    newPasswordConfirmation: z.string()
+});
+
+export const zUpdatePasswordControllerChangePasswordResponse = z.void();
+
 export const zUpdatePasswordWithPasswordTokenControllerRunBody = z.object({
     password: z.string(),
     passwordConfirmation: z.string()
@@ -2540,3 +2548,179 @@ export const zUpdateNotificationRequestCaseFileIdControllerRunPath = z.object({
     caseFileId: z.string(),
     notificationRequestId: z.string()
 });
+
+export const zListUsersControllerRunPath = z.object({
+    companyId: z.string()
+});
+
+export const zListUsersControllerRunQuery = z.object({
+    filter: z.object({
+        email: z.string().optional(),
+        partialEmail: z.string().optional(),
+        emails: z.array(z.string()).optional(),
+        ids: z.array(z.uuid()).optional(),
+        search: z.string().optional(),
+        role: z.enum([
+            'admin',
+            'manager',
+            'normal'
+        ]).optional(),
+        roles: z.array(z.enum([
+            'admin',
+            'manager',
+            'normal'
+        ])).optional(),
+        status: z.enum([
+            'pending',
+            'active',
+            'disabled',
+            'cancelled',
+            'banned'
+        ]).optional(),
+        statuses: z.array(z.enum([
+            'pending',
+            'active',
+            'disabled',
+            'cancelled',
+            'banned'
+        ])).optional(),
+        statusNot: z.enum([
+            'pending',
+            'active',
+            'disabled',
+            'cancelled',
+            'banned'
+        ]).optional(),
+        statusesNot: z.array(z.enum([
+            'pending',
+            'active',
+            'disabled',
+            'cancelled',
+            'banned'
+        ])).optional(),
+        companyId: z.uuid().optional(),
+        id: z.string().optional()
+    }).optional(),
+    order: z.object({
+        createdAt: z.enum(['ASC', 'DESC']).optional(),
+        confirmedAt: z.enum(['ASC', 'DESC']).optional(),
+        lastName: z.enum(['ASC', 'DESC']).optional()
+    }).optional(),
+    page: z.object({
+        number: z.number().gte(1).default(1),
+        size: z.number().gte(0).lte(100).default(20)
+    }).optional()
+});
+
+export const zListUsersControllerRunResponse = z.object({
+    data: z.array(z.object({
+        id: z.string(),
+        email: z.string(),
+        status: z.string(),
+        role: z.string(),
+        firstName: z.string(),
+        lastName: z.string(),
+        confirmedAt: z.string().optional(),
+        companyId: z.string()
+    })).optional(),
+    meta: z.object({
+        totalElements: z.number().optional()
+    }).optional()
+});
+
+export const zShowProfileControllerRunResponse = z.object({
+    id: z.string(),
+    email: z.string(),
+    status: z.string(),
+    role: z.string(),
+    firstName: z.string(),
+    lastName: z.string(),
+    confirmedAt: z.string().optional(),
+    companyId: z.string(),
+    companyVerified: z.boolean(),
+    companyCorporate: z.boolean(),
+    companyName: z.string().optional(),
+    defaultCaseFileId: z.string().optional(),
+    language: z.string(),
+    onboardingShown: z.boolean(),
+    certifierStripeCustomerExists: z.boolean(),
+    loginInfo: z.object({
+        type: z.enum(['Password', 'OpenId']),
+        issuer: z.string().optional(),
+        clientId: z.string().optional()
+    }),
+    permit: z.object({
+        evidences: z.boolean(),
+        idVerifications: z.boolean(),
+        notifications: z.boolean()
+    })
+});
+
+export const zUpdateProfileControllerRunBody = z.object({
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    language: z.enum(['en_GB', 'es_ES']).optional(),
+    onboardingShown: z.boolean().optional()
+});
+
+export const zUpdateProfileControllerRunResponse = z.void();
+
+export const zShowUserControllerRunPath = z.object({
+    id: z.string()
+});
+
+export const zShowUserControllerRunResponse = z.object({
+    id: z.string(),
+    email: z.string(),
+    status: z.string(),
+    role: z.string(),
+    firstName: z.string(),
+    lastName: z.string(),
+    confirmedAt: z.string().optional(),
+    companyId: z.string(),
+    permit: z.object({
+        evidences: z.boolean(),
+        notifications: z.boolean(),
+        idVerifications: z.boolean()
+    })
+});
+
+export const zUpdateUserStatusControllerRunBody = z.object({
+    status: z.enum([
+        'pending',
+        'active',
+        'disabled',
+        'cancelled',
+        'banned'
+    ])
+});
+
+export const zUpdateUserStatusControllerRunPath = z.object({
+    id: z.string()
+});
+
+export const zUpdateUserStatusControllerRunResponse = z.void();
+
+export const zUpdateAllUserPermitsByCompanyControllerRunBody = z.object({
+    evidences: z.boolean().optional(),
+    idVerifications: z.boolean().optional(),
+    notifications: z.boolean().optional()
+});
+
+export const zUpdateAllUserPermitsByCompanyControllerRunPath = z.object({
+    companyId: z.string()
+});
+
+export const zUpdateAllUserPermitsByCompanyControllerRunResponse = z.void();
+
+export const zUpdateUserPermitControllerRunBody = z.object({
+    evidences: z.boolean().optional(),
+    idVerifications: z.boolean().optional(),
+    notifications: z.boolean().optional()
+});
+
+export const zUpdateUserPermitControllerRunPath = z.object({
+    id: z.string()
+});
+
+export const zUpdateUserPermitControllerRunResponse = z.void();

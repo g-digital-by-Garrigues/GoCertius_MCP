@@ -10,6 +10,8 @@
 
 export { AuthConfigError, detectAuthAdapter } from "./detect.js";
 export { EmailPasswordAdapter } from "./email-password.js";
+export type { CallerProfile } from "./profile.js";
+export { fetchCallerProfile, fetchCallerUserId } from "./profile.js";
 export { ServiceAccountAdapter } from "./service-account.js";
 export type { AuthContext, AuthSession } from "./session.js";
 export { createAuthSession } from "./session.js";
