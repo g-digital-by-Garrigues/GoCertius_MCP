@@ -9,6 +9,7 @@ artifact_owners_schema_version: 1
 generator:
   - .artifact-owners.yaml
   - .claude/commands/
+  - .claude/skills/
   - .distribution.yaml
   - .env.example
   - .github/workflows/ci.yml

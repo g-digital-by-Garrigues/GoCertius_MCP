@@ -89,6 +89,15 @@ This package ships Claude Code slash-commands under `.claude/commands/`. After i
 
 See [docs/agent-prompts.md](docs/agent-prompts.md) for end-to-end prompt examples and the tool sequences they trigger.
 
+## Prefer to code against the REST API directly?
+
+You don't have to go through this MCP server. This repo also ships a **Claude Code skill** — a standalone integration guide (authentication, call ordering, options, enums, gotchas) for programming directly against the REST API:
+
+- **Skill:** [`.claude/skills/gocertius-suite-api/SKILL.md`](.claude/skills/gocertius-suite-api/SKILL.md) — open this repo in Claude Code and it is available directly.
+- **As a reference:** [docs/api-integration-skill.md](docs/api-integration-skill.md).
+
+It is independent of the MCP tools and the n8n node — pick whichever entry point fits your integration.
+
 ## Available Tools
 
 This server exposes **41 tools**:
