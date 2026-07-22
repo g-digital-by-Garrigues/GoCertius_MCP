@@ -1,42 +1,42 @@
 {
+  "name": "@g-digital/mcp-gocertius",
+  "version": "1.5.0",
+  "description": "MCP server for GoCertius: certified evidence, dossiers, notifications and chats via AI agents.",
+  "mcpName": "io.github.g-digital-by-Garrigues/gocertius",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/g-digital-by-Garrigues/GoCertius_MCP.git"
+  },
+  "type": "module",
   "bin": {
     "mcp-gocertius": "./dist/server.js"
   },
-  "dependencies": {
-    "@hey-api/client-fetch": "^0.9.0",
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "lru-cache": "^11.0.0",
-    "pino": "^10.0.0",
-    "zod": "^4.0.0"
-  },
-  "description": "MCP server for GoCertius: certified evidence, dossiers, notifications and chats via AI agents.",
-  "devDependencies": {
-    "tsup": "^8.5.0",
-    "typescript": "^5.5.0"
-  },
-  "engines": {
-    "node": ">=22"
-  },
+  "main": "./dist/server.js",
+  "types": "./dist/server.d.ts",
   "files": [
     "dist",
     ".distribution.yaml",
     "assets",
     ".claude/commands/**/*.md"
   ],
-  "license": "MIT",
-  "main": "./dist/server.js",
-  "mcpName": "io.github.g-digital-by-Garrigues/gocertius",
-  "name": "@g-digital/mcp-gocertius",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/g-digital-by-Garrigues/GoCertius_MCP.git"
+  "engines": {
+    "node": ">=22"
   },
   "scripts": {
     "build": "tsup",
-    "prepublishOnly": "npm run build",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "prepublishOnly": "npm run build"
   },
-  "type": "module",
-  "types": "./dist/server.d.ts",
-  "version": "1.5.0"
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@hey-api/client-fetch": "^0.9.0",
+    "lru-cache": "^11.0.0",
+    "pino": "^10.0.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0",
+    "typescript": "^5.5.0"
+  }
 }
