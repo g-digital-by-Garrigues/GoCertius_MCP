@@ -21,13 +21,15 @@ const MAX_REFRESH_RETRIES = 3;
 
 export class AuthSession {
   private cached: AuthContext | null = null;
+  /** In-flight exchange shared by every concurrent caller (single-flight). */
+  private inFlight: Promise<AuthContext> | null = null;
 
   constructor(private readonly adapter: AuthAdapter) {}
 
   /** Returns a valid token, refreshing proactively if close to expiry (AC3) */
   async getToken(): Promise<string> {
     if (!this.cached || this.isExpiringSoon()) {
-      this.cached = await this.loginWithRetry();
+      return (await this.exchange(() => this.loginWithRetry())).token;
     }
     return this.cached.token;
   }
@@ -37,12 +39,45 @@ export class AuthSession {
    * If refresh fails, throw — caller will surface error.
    */
   async refreshAfter401(): Promise<string> {
-    if (!this.cached) {
-      this.cached = await this.loginWithRetry();
-      return this.cached.token;
+    const stale = this.cached;
+    const ctx = await this.exchange(() =>
+      stale ? this.adapter.refresh(stale) : this.loginWithRetry(),
+    );
+    return ctx.token;
+  }
+
+  /**
+   * Runs `exchange` unless one is already in flight, in which case every caller
+   * awaits the same result.
+   *
+   * Without this (retro review 2026-09-02) N concurrent tool calls each ran a
+   * full credential exchange — on the user-key flow that is N `POST
+   * /user-keys/session` with the same long-lived key per burst, which is the
+   * shape that trips an auth-endpoint rate limit or a session cap. Stateless
+   * HTTP makes bursts the normal case: a fresh McpServer per request shares one
+   * process-wide AuthSession. It also removes a destructive interleaving, where
+   * two concurrent refreshes could clear a valid token and then both fail.
+   *
+   * A caller that joins an exchange started just before its own 401 may receive
+   * a token minted moments earlier; that token is fresh, and the worst case is
+   * one further 401 retry rather than a stampede.
+   */
+  private async exchange(run: () => Promise<AuthContext>): Promise<AuthContext> {
+    const existing = this.inFlight;
+    if (existing) {
+      const joined = await existing;
+      this.cached = joined;
+      return joined;
     }
-    this.cached = await this.adapter.refresh(this.cached);
-    return this.cached.token;
+    const pending = run();
+    this.inFlight = pending;
+    try {
+      const fresh = await pending;
+      this.cached = fresh;
+      return fresh;
+    } finally {
+      if (this.inFlight === pending) this.inFlight = null;
+    }
   }
 
   private isExpiringSoon(): boolean {

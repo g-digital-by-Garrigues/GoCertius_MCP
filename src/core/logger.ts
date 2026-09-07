@@ -40,7 +40,13 @@ const ALLOWED_FIELDS = new Set([
   "hostname",
 ]);
 
-const CREDENTIAL_PATTERN = /password|token|secret|refresh|auth_password|auth_email/i;
+// Defence in depth behind ALLOWED_FIELDS: today no code path logs a credential, so a
+// field named `userKey` or `jwt` is dropped only because it is absent from the
+// allow-list. Allow-list one such field later and it would log in clear (retro review
+// 2026-09-02). `user_?key`/`api_?key` rather than a bare `key` so that benign fields
+// like `filterKey` or `idempotencyKey` are not mangled if they are ever allow-listed.
+const CREDENTIAL_PATTERN =
+  /password|token|secret|refresh|jwt|credential|user_?key|api_?key|auth_password|auth_email/i;
 
 function redactValue(key: string, value: unknown): unknown {
   if (CREDENTIAL_PATTERN.test(key) && typeof value === "string") {

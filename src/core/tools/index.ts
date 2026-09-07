@@ -78,6 +78,37 @@ export interface ToolContext {
    * Undefined when the client does not support elicitation.
    */
   elicitInput?: (params: ElicitFormParams | ElicitUrlParams) => Promise<ElicitResponse>;
+  /**
+   * Force the server's shared `AuthSession` to re-exchange its credential, and
+   * return the resulting context — the fresh token plus its `expiresAt` (epoch ms),
+   * so the caller can use the token immediately (e.g. for `GET /profile`) without a
+   * second exchange.
+   *
+   * The shared `AuthSession` — not the tool — owns the token. This delegates to the
+   * very instance every other tool call is served from, so its single-flight guard,
+   * its in-memory cache and `jwtExpiryMs`'s expiry clamp all still apply, and the
+   * token it mints is the one subsequent calls will use. A tool must never mint or
+   * store a session token of its own.
+   *
+   * Why a tool needs this at all (STR-E18-02): `session_login` declares
+   * `operatesOnServerSession`, which excludes it from token injection in `server.ts`
+   * (STR-E18-04 replaced the older by-name exclusion), so it executes with
+   * `auth === null`. It used to reach the process session by writing its own exchange
+   * into the in-process token store, which was deleted along with the pre-seeded-JWT
+   * path — so this is now the only way a tool can affect the session the server
+   * actually uses.
+   *
+   * Undefined when there is no session to act on: a credential-less boot
+   * (`detectAuthAdapter` returned null, FR-E-013), or HTTP mode where the caller
+   * brought its own Bearer and the server owns no session.
+   *
+   * That is a PER-CALL answer. STR-E18-04 adds a separate, deployment-level one on top:
+   * when `MCP_HTTP_PUBLIC=true` a tool declaring `operatesOnServerSession` is never
+   * registered, so the question is not asked at all. The two layers answer different
+   * questions — "may this particular call act on a server session" versus "should this
+   * deployment advertise such a tool in the first place".
+   */
+  reauthenticate?: () => Promise<AuthContext>;
 }
 
 export type ToolResult = unknown | McpErrorContent;
@@ -174,20 +205,59 @@ export interface ToolSpec<I extends ZodType = ZodType> {
   idempotencyWindowSeconds?: number;
   /**
    * Whether this tool needs an upstream token. Default true. Set false for
-   * bootstrap/meta tools that need no auth (e.g. a help tool); `session_login`
-   * is exempt by name regardless. Drives the missing-credential fail-soft guard.
+   * bootstrap/meta tools that need no credential at all (e.g. a help tool). Drives
+   * the missing-credential fail-soft guard (see `toolRequiresAuth`).
+   *
+   * Independent of `operatesOnServerSession` below, and neither implies the other:
+   * this one says "no credential is needed"; that one says "the credential is this
+   * tool's subject rather than its input".
    */
   requiresAuth?: boolean;
+  /**
+   * Declares that the tool operates ON the server's own credential session instead of
+   * consuming it. `session_login` — "make the server re-exchange its configured
+   * credential" — is the only such tool today (STR-E18-04).
+   *
+   * mcp-core used to express exactly this by comparing `tool.name` against the literal
+   * tool name session_login in four separate places, which put a product tool name
+   * inside a product-agnostic package. This flag replaces all four; each one is a
+   * different consequence of the same statement:
+   *
+   *  - **No token injection.** `server.ts` does not put the server's token into
+   *    `ctx.auth`: the tool's job is to (re-)establish that token, so handing it the
+   *    stale one is meaningless. It reaches the session via `ctx.reauthenticate`.
+   *  - **No 401 refresh-and-retry.** The generic one-shot retry would re-exchange the
+   *    credential and then re-run a tool whose entire purpose is that exchange.
+   *  - **No missing-credentials fail-soft.** See `toolRequiresAuth`: the tool has to be
+   *    callable precisely when the session is not usable yet.
+   *  - **Not registered at all in shared HTTP mode.** With `MCP_HTTP_PUBLIC=true` the
+   *    server is multi-tenant: every caller brings its own `Authorization: Bearer`
+   *    token and the server holds no session on anyone's behalf, so the tool has
+   *    nothing to act on — and if the operator did configure a server-side credential,
+   *    calling it would authenticate as the OPERATOR and return the operator's identity
+   *    to whichever client asked. `server.ts` therefore withholds flagged tools from
+   *    registration (and so from `tools/list`) in that mode.
+   */
+  operatesOnServerSession?: boolean;
   /** Tool implementation — called after auth + idempotency checks */
   execute(input: unknown, ctx: ToolContext): Promise<ToolResult>;
 }
 
 /**
- * True when a tool must have auth available before executing. Default-true with a
- * `requiresAuth: false` opt-out and a back-compat name exemption for `session_login`.
+ * True when a tool must have auth available before executing. Default-true, with two
+ * INDEPENDENT opt-outs:
+ *   - `requiresAuth: false` — the tool needs no credential at all (e.g. a help tool);
+ *   - `operatesOnServerSession: true` — establishing the credential IS the tool's job,
+ *     so it must stay callable while there is none.
+ *
+ * The second replaces the hardcoded by-name exemption for session_login that this
+ * function used to carry, whose own comment called it "a back-compat name exemption":
+ * a product tool name had no business in product-agnostic mcp-core (STR-E18-04).
  */
-export function toolRequiresAuth(tool: Pick<ToolSpec, "name" | "requiresAuth">): boolean {
-  return tool.requiresAuth !== false && tool.name !== "session_login";
+export function toolRequiresAuth(
+  tool: Pick<ToolSpec, "name" | "requiresAuth" | "operatesOnServerSession">,
+): boolean {
+  return tool.requiresAuth !== false && tool.operatesOnServerSession !== true;
 }
 
 /**

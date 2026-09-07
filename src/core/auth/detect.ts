@@ -1,9 +1,15 @@
 /**
  * Credential detection: determines which auth flow to use from env vars.
- * Fast-fails when vars from more than one flow are mixed.
+ * Two flows only (STR-E18-02): user-key (MCP_AUTH_USER_KEY) and service-account
+ * (MCP_SVC_TOKEN_URL + client id/secret).
+ * Fast-fails when vars from more than one flow are mixed, when a flow is only
+ * partially configured, and when a variable is present but blank.
+ *
+ * Fail-closed (retro review 2026-09-02): a *misconfiguration* throws
+ * AuthConfigError and server.ts refuses to boot. Only a genuinely empty
+ * environment returns null — that is FR-E-013 (public HTTP deployments carry no
+ * server-side credentials and authenticate every request from its own Bearer).
  */
-import { DeviceFlowAdapter } from "./device-flow.js";
-import { EmailPasswordAdapter } from "./email-password.js";
 import { ServiceAccountAdapter } from "./service-account.js";
 import type { AuthAdapter } from "./session.js";
 import { UserKeyAdapter } from "./user-key.js";
@@ -16,10 +22,13 @@ export class AuthConfigError extends Error {
 }
 
 export interface AuthEnv {
-  MCP_AUTH_EMAIL?: string;
-  MCP_AUTH_PASSWORD?: string;
-  MCP_AUTH_JWT?: string;
-  // User-key flow (Epic E14): a single long-lived key exchanged for a session JWT
+  // User-key flow (Epic E14): a single long-lived key exchanged for a session JWT.
+  // The only upstream user-context credential mcp-core knows (STR-E18-02) — the
+  // retired email/password pair and pre-seeded-JWT variable are now ordinary unknown
+  // variables, so setting one boots a credential-less server rather than throwing: a
+  // variable this package does not support cannot be a misconfiguration of it, and
+  // keeping a permanent deny-list of once-supported names is the cost of the loud
+  // alternative. Every auth-requiring tool still fails with missingCredentialsError.
   MCP_AUTH_USER_KEY?: string;
   MCP_API_BASE_URL?: string;
   // OUTBOUND service-account flow (OAuth2 client_credentials, ADR-A2 / FR-5..8).
@@ -35,18 +44,47 @@ export interface AuthEnv {
   MCP_SVC_INTROSPECT_URL?: string;
 }
 
-export function detectAuthAdapter(env: AuthEnv = process.env as AuthEnv): AuthAdapter | null {
-  const baseUrl = env.MCP_API_BASE_URL ?? "https://api-gocertius.gocertius.io";
+/** Variables that configure an upstream user-context flow (STR-E18-02: exactly one). */
+const USER_CONTEXT_VARS = ["MCP_AUTH_USER_KEY"] as const;
 
-  // MCP_AUTH_JWT: JWT pre-seeded directly (e.g. extracted from a browser session).
-  // Use DeviceFlowAdapter so authSession reads from deviceFlowStore (seeded in server.ts).
-  if (env.MCP_AUTH_JWT) {
-    return new DeviceFlowAdapter();
+/**
+ * The upstream API root for the flows that call it.
+ *
+ * Deliberately has NO default: mcp-core is shared by products on different hosts,
+ * and a single default meant an EAD Enterprise Suite deployment without
+ * MCP_API_BASE_URL sent its long-lived user key to the GoCertius host (retro
+ * review 2026-09-02). Each product injects its own value.
+ */
+function requireBaseUrl(env: AuthEnv, flowVar: string): string {
+  const baseUrl = env.MCP_API_BASE_URL?.trim().replace(/\/+$/, "");
+  if (!baseUrl) {
+    throw new AuthConfigError(
+      `Auth config error: MCP_API_BASE_URL must be set — ${flowVar} authenticates against it. ` +
+        "mcp-core carries no default host: credentials must never be sent to a guessed deployment.",
+    );
+  }
+  return baseUrl;
+}
+
+export function detectAuthAdapter(env: AuthEnv = process.env as AuthEnv): AuthAdapter | null {
+  // Present-but-blank is a misconfiguration, not "unset": an unresolved ${...} in a
+  // compose file, or an emptied n8n credential field. Falling through to `return null`
+  // booted an unauthenticated server whose remediation named the very variable that
+  // WAS set (retro review 2026-09-02).
+  const blank = USER_CONTEXT_VARS.filter(
+    (name) => env[name] !== undefined && env[name]?.trim() === "",
+  );
+  if (blank.length > 0) {
+    throw new AuthConfigError(
+      `Auth config error: ${blank.join(", ")} is set but empty. Provide a value, or remove ` +
+        "the variable entirely to run without upstream credentials (per-request Bearer only).",
+    );
   }
 
-  const hasEmail = Boolean(env.MCP_AUTH_EMAIL);
-  const hasPassword = Boolean(env.MCP_AUTH_PASSWORD);
-  const hasUserKey = Boolean(env.MCP_AUTH_USER_KEY);
+  // The user key is opaque base64 and routinely arrives with copy-paste padding,
+  // so it is trimmed before use.
+  const userKey = env.MCP_AUTH_USER_KEY?.trim();
+  const hasUserKey = Boolean(userKey);
 
   // Service-account flow (ADR-A2): all three of token URL + client id + secret required.
   //
@@ -55,18 +93,21 @@ export function detectAuthAdapter(env: AuthEnv = process.env as AuthEnv): AuthAd
   // introspection (MCP_SVC_INTROSPECT_URL), which MCP_HTTP_PUBLIC=true requires.
   // Keying on "any MCP_SVC_* var" made those two concerns collide — configuring
   // introspection on a gocertius/suite deployment either conflicted with its
-  // email/user-key flow or tripped the incomplete-set check, so the server
-  // refused to start and public HTTP mode was unusable there (STR-E15-04).
+  // user-key flow or tripped the incomplete-set check, and the resulting
+  // AuthConfigError was swallowed by server.ts, so the server booted looking
+  // healthy while every upstream call went out unauthenticated (STR-E15-04; the
+  // original story text said "refused to start", corrected in the epic doc).
   const hasSvcTokenUrl = Boolean(env.MCP_SVC_TOKEN_URL);
   const hasSvcClientId = Boolean(env.MCP_SVC_CLIENT_ID);
   const hasSvcClientSecret = Boolean(env.MCP_SVC_CLIENT_SECRET);
+  const hasSvcIntrospectUrl = Boolean(env.MCP_SVC_INTROSPECT_URL);
   const hasSvcFlow = hasSvcTokenUrl && hasSvcClientId && hasSvcClientSecret;
 
-  // Conflict: service_account is mutually exclusive with the user-context flows.
-  if (hasSvcTokenUrl && (hasEmail || hasPassword || hasUserKey)) {
+  // Conflict: service_account is mutually exclusive with the user-context flow.
+  if (hasSvcTokenUrl && hasUserKey) {
     throw new AuthConfigError(
-      "Auth config conflict: the service-account flow (MCP_SVC_TOKEN_URL) cannot be combined " +
-        "with email/password or user-key vars. Configure exactly one auth flow. " +
+      "Auth config conflict: MCP_SVC_TOKEN_URL (service-account flow) cannot be combined " +
+        "with MCP_AUTH_USER_KEY. Configure exactly one auth flow. " +
         "Service account: MCP_SVC_TOKEN_URL + MCP_SVC_CLIENT_ID + MCP_SVC_CLIENT_SECRET (+ optional MCP_SVC_SCOPE). " +
         "Note: MCP_SVC_CLIENT_ID/MCP_SVC_CLIENT_SECRET on their own are fine — they double as " +
         "inbound introspection credentials (MCP_SVC_INTROSPECT_URL) and do not select this flow.",
@@ -93,28 +134,31 @@ export function detectAuthAdapter(env: AuthEnv = process.env as AuthEnv): AuthAd
     });
   }
 
-  // User-key flow (Epic E14): a single long-lived key, exchanged for a session JWT.
-  // Mutually exclusive with the other user-context flows.
-  if (hasUserKey) {
-    if (hasEmail || hasPassword) {
-      throw new AuthConfigError(
-        "Auth config conflict: MCP_AUTH_USER_KEY cannot be combined with email/password vars. " +
-          "Configure exactly one auth flow.",
-      );
-    }
-    return new UserKeyAdapter({ baseUrl, userKey: env.MCP_AUTH_USER_KEY! });
+  // Outbound service account missing only its token URL. The shared client
+  // id/secret are legitimate on their own ONLY when they serve inbound
+  // introspection, so this fires exclusively when neither MCP_SVC_TOKEN_URL nor
+  // MCP_SVC_INTROSPECT_URL is set and no user-context flow is configured either.
+  // Restores the named diagnostic that keying detection on MCP_SVC_TOKEN_URL
+  // alone dropped — STR-E15-04 AC8 regression, and EAD Factory's only flow.
+  if (hasSvcClientId && hasSvcClientSecret && !hasSvcIntrospectUrl && !hasUserKey) {
+    throw new AuthConfigError(
+      "Incomplete service-account config: MCP_SVC_TOKEN_URL must be set " +
+        "(MCP_SVC_TOKEN_URL + MCP_SVC_CLIENT_ID + MCP_SVC_CLIENT_SECRET; MCP_SVC_SCOPE optional). " +
+        "If these credentials are meant for inbound Bearer introspection instead, set MCP_SVC_INTROSPECT_URL.",
+    );
   }
 
-  // Email/password flow requires BOTH vars.
-  const hasEmailFlow = hasEmail && hasPassword;
-  if (hasEmailFlow) {
-    return new EmailPasswordAdapter({
-      baseUrl,
-      email: env.MCP_AUTH_EMAIL!,
-      password: env.MCP_AUTH_PASSWORD!,
+  // User-key flow (Epic E14): a single long-lived key, exchanged for a session JWT.
+  // The only user-context flow (STR-E18-02), so there is no sibling to conflict with
+  // — the exclusivity check above is against the service account.
+  if (userKey) {
+    return new UserKeyAdapter({
+      baseUrl: requireBaseUrl(env, "MCP_AUTH_USER_KEY"),
+      userKey,
     });
   }
 
-  // No credentials configured — server boots without auth (FR-E-013).
+  // No credentials configured at all — server boots without upstream auth (FR-E-013).
+  // Intentional: public HTTP deployments authenticate each request from its own Bearer.
   return null;
 }

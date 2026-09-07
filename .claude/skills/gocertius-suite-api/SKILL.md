@@ -1,13 +1,13 @@
 ---
 name: gocertius-suite-api
-version: 1.0.0
-updated: 2026-07-18
+version: 1.0.1
+updated: 2026-09-04
 description: 'Integration guide for the GoCertius / EAD Enterprise Suite REST API (one shared spec, two deployments). Covers authentication (long-lived user keys — the recommended flow — and password sessions), the case-file resource model, and the exact ordered call sequences for evidence capture, dossier certification, e-signature (advanced/interposition) incl. downloading the signed document + completion certificate, certified notifications (email/WhatsApp) incl. delivery certificates, and certified chats — plus enums, options, and known gotchas. Use when writing or debugging any code that talks to this API directly. For EAD Factory (gcloudfactory.com), use the ead-factory-api skill instead.'
 ---
 
 # GoCertius / EAD Enterprise Suite — API Integration Guide
 
-> **Skill version 1.0.0 — updated 2026-07-18.** See the [Changelog](#changelog) at the end. Authentication facts are stated as of this date; the user-key endpoints are being promoted to production (see §1).
+> **Skill version 1.0.1 — updated 2026-09-04.** See the [Changelog](#changelog) at the end. Authentication facts about the REST API are stated as of 2026-07-18; the user-key endpoints are being promoted to production (see §1). The 2026-09-04 revision only adds the MCP-server/n8n note in §1 — no REST behaviour changed.
 
 GoCertius and EAD Enterprise Suite are the **same API** behind two deployments. They share one OpenAPI contract and differ only in base URL and **which products each deployment has enabled**. Everything in this guide applies to both, but check the product table below before calling an endpoint — a resource that isn't enabled on your deployment won't work.
 
@@ -41,7 +41,7 @@ All business endpoints require `Authorization: Bearer <jwt>`. There are two supp
 | How | Endpoint | Session | When to use |
 |---|---|---|---|
 | **User key** *(recommended)* | `POST /user-keys/session` | ~24 h | Headless / server-to-server: a long-lived key, no password in config. The predominant method — see the rollout note. |
-| **Password** | `POST /session` | ~1 h | Interactive logins, and to mint a user key from. Fully supported everywhere. |
+| **Password** | `POST /session` | ~1 h | Interactive logins, and to mint a user key from. Fully supported everywhere *at the API level* — but **not** by the MCP servers / n8n node, which take a user key only (see [Password accounts](#password-accounts)). |
 
 > **User-key rollout (as of this guide's date, 2026-07-18).** User keys are the intended default for automated integrations and are being promoted to production imminently. **Password login is available on every host and remains fully supported** — use it for interactive sessions, and as the fallback wherever the user-key endpoints are not yet live on your target host.
 
@@ -66,6 +66,26 @@ curl -s -X POST "$BASE/user-keys/session" \
 Then use that `jwt` exactly like a password-session JWT (`Authorization: Bearer <jwt>` on every call). Cache it and re-exchange on expiry — the key itself is reusable until it expires or is revoked, so **do not call `/user-keys/session` on every request**; exchange once, reuse the JWT, and refresh shortly before its `exp`.
 
 **A user-key session has no email of its own** — so use `GET /profile` (below), not `/session-info/{email}`, to learn who you are and get your `userId`.
+
+> ⚠️ **Key management is human-gated — deliberately.** The four `/user-keys` endpoints are the only
+> place in this API where a long-lived credential is created, listed or destroyed, and the create
+> response is the one and only moment the secret exists in readable form. Treat them as a human
+> operation, not an automated one:
+>
+> - **An agent should not call them.** The MCP servers built on this API expose **no tool** for any
+>   of the four, on purpose. An agent that mints a key writes the secret into its own transcript,
+>   and transcripts are logged, summarised, replayed and often shared.
+> - **Never ask a person to paste a key into a chat.** Have them write it to a file with
+>   restrictive permissions (`chmod 600`) or set it as an environment variable, and point the
+>   integration at that. If a key ever does reach a transcript, treat it as compromised and revoke
+>   it — `DELETE /user-keys/{id}` is the whole remedy.
+> - **A key carries the full identity and permissions of whoever minted it**, including everything
+>   an admin can do if it was minted from an admin account. There is no reduced scope, no
+>   per-endpoint restriction and no audit of which integration used it.
+> - **Expect this surface to change.** It depends on whatever authentication model the platform
+>   settles on. A future model may require a second factor to mint or revoke a key, or withdraw
+>   these endpoints from the API altogether for security reasons. Do not build a product feature on
+>   top of them; use them the way you would use a password-reset page.
 
 **Managing keys** (these calls *are* authenticated — you need a session JWT first, so a key is always minted from a password login or an existing session):
 
@@ -96,6 +116,16 @@ Notes that matter:
 ### Password accounts
 
 Fully supported everywhere, and the way to bootstrap a user key.
+
+> **If you arrived here from the MCP server or the n8n node, they no longer take a password.**
+> Since 2026-09 the GoCertius / EAD Enterprise Suite **MCP servers and the n8n node accept one
+> credential only: a user key**, in `MCP_AUTH_USER_KEY` (plus `MCP_API_BASE_URL`, which is
+> required). Their email/password and pre-seeded-JWT settings were removed; a stale config does
+> not fail at startup, it fails every tool call with "No credentials configured".
+> **This does not deprecate anything in this section.** `POST /session`, the legal-texts gate and
+> `/session-with-legal-texts` are unchanged REST behaviour, still correct for any direct
+> integration — and a password login is still **how you mint the user key** those clients need
+> (`POST /user-keys`, above; the management endpoints require a session).
 
 ```
 POST /session   { "email", "password" }   →   { "jwt": "..." }
@@ -477,6 +507,7 @@ Certified delivery of a document/message to one or more receivers, with a delive
 | Language | `language` | `en_GB` · `es_ES` |
 | Per-receiver OTP | `otpRequired` / `otpByDefault` | boolean |
 | WhatsApp link | `sendWaUrl` / `sendWaUrlByDefault` | boolean |
+| RCS / SMS link | `sendSmsUrl` / `sendSmsUrlByDefault` | boolean — the channel negotiates: RCS where the recipient's handset supports it, SMS otherwise |
 
 Same UUID + `phonePrefix "+"` rules as signatures apply.
 
@@ -510,6 +541,19 @@ curl -s "$BASE/case-files/$CF/notification-requests/$NR" -H "Authorization: Bear
 (Attaching a document — step 3 in the sequence above — is optional; the receiver + `sendWaUrl` are what drive email/WhatsApp delivery.)
 
 > ⚠️ **Attachment ordering (tested).** If you attach a document, you must **add the document *before* the receivers** and **wait until its status is `READY_TO_SEND`** before calling `/send`. Attaching after receivers, or sending while the document is still `PENDING`, fails with `409/404 NOTIFICATION_NOT_FOUND`. Notification documents use the same `hash → {url} → PUT + x-amz-checksum-sha256` upload as everything else. Poll `GET .../notification-requests/{id}/documents` (status `PENDING → READY_TO_SEND`, ~8 s) with bounded retries per §2.3.
+
+> ⚠️ **Lifecycle constraints (tested 2026-09-04/05, production).** Four things the spec does not say:
+> **(1)** `PUT .../notification-requests/{id}` and `DELETE .../notification-requests/{id}` return
+> **403 Forbidden once the request has been SENT** — they work only before the send.
+> **(2)** A receiver whose `status` is `INVALID` **blocks `/send`**; clear them with
+> `DELETE .../invalid-receivers` or fix the address with `PUT .../receivers/{id}` first.
+> **(3)** `POST .../notification-requests/{id}/duplicate` is **asynchronous** and copies the
+> content, the receivers **and** the documents: the copy appears in `CREATING` with zero of both and
+> fills in after a few seconds, so polling it immediately shows an empty request that is not empty.
+> It honours the `id` you supply.
+> **(4)** `POST .../receivers/{receiverId}/duplicate` returned **HTTP 500 on every call shape tried**
+> (same request as source and target, across two requests, and a receiver id from a sent request).
+> Add the receiver again with `POST .../receivers` instead.
 
 ### Delivery certificates (tested)
 
@@ -576,4 +620,5 @@ A **chat** captures a conversation (Telegram-backed) under a case file and lets 
 
 ## Changelog
 
+- **1.0.1 — 2026-09-04.** Annotation only; **no REST-API fact changed and no password content removed**. Records that the GoCertius / EAD Enterprise Suite **MCP servers and n8n node** stopped accepting email/password (and pre-seeded JWTs) and now take `MCP_AUTH_USER_KEY` only, while `POST /session`, the legal-texts 409 gate and `/session-with-legal-texts` remain fully supported by the API — and remain the way a user key is minted. *(Context: Epic E18 in the MCP generator, 2026-09-03. This skill documents the underlying REST API and is versioned independently of the MCP packages.)*
 - **1.0.0 — 2026-07-18.** First versioned/dated release. Authentication reworked: **user keys are now the recommended, predominant flow** (production rollout in progress) with password login kept as a fully supported alternative. Added **`GET /profile`** as the canonical way to resolve your `userId` (its `id`) on any flow — and corrected the previous guidance that read `userId` from the JWT `sub` claim, which is unreliable for user-key sessions. **Removed all OpenID access instructions** (device-code / `POST /openid/session` how-to); OpenID now appears only as a two-line note that such accounts cannot authenticate via this API. *(Context: user-key auth shipped in the MCP packages GoCertius v1.5.0 / EAD Enterprise Suite v1.6.0; this skill documents the underlying REST API and is versioned independently.)*

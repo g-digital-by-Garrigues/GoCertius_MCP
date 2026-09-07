@@ -1,17 +1,15 @@
-// Custom tool: session_info — returns the caller's userId and session type.
+// Custom tool: session_info — returns the caller's userId and how they are authenticated.
 //
-// Two identity paths, because the auth flows are mutually exclusive (detect.ts):
-//  - user key (no MCP_AUTH_EMAIL): GET /profile → `id` is the userId. The only
-//    path available here — /session-info/{email} has no email to query with.
-//  - email/password: GET /session-info/{email}, as before.
+// One identity path (STR-E18-03): GET /profile → `id` is the userId. It is the only one
+// available, and now the only one needed — /session-info/{email} was keyed on an email
+// that a user-key deployment never has, and the user key is the sole upstream credential
+// mcp-core accepts (STR-E18-02).
 //
 // Copied verbatim by the generator (AC3 override mechanism).
-// n8n-http: GET /session-info/{email}
+// n8n-http: GET /profile
 // Paths are relative to the emitted location: dist-repos/gocertius/src/tools/
 
 import { z } from "zod";
-import { createClient, createConfig } from "../api/client/index.js";
-import { showSessionInfoControllerRun } from "../api/sdk.gen.js";
 import { defineTool, fetchCallerProfile } from "../core/index.js";
 
 const BASE_URL = process.env.MCP_API_BASE_URL ?? "https://api-gocertius.gocertius.io";
@@ -19,13 +17,15 @@ const BASE_URL = process.env.MCP_API_BASE_URL ?? "https://api-gocertius.gocertiu
 export const session_info = defineTool({
   name: "session_info",
   description:
-    "Returns the authenticated user's session info including userId and session type (Password or UserKey). " +
-    "Use this to retrieve the userId (UUID) required by case_file_list and other user-scoped operations. " +
-    "Works on both auth flows: with a user key (MCP_AUTH_USER_KEY) it resolves identity via profile_get " +
-    "(GET /profile → `id`), since no email is configured; with MCP_AUTH_EMAIL it queries /session-info. " +
-    "profile_get is the canonical way to obtain the userId and returns more (companyId, defaultCaseFileId). " +
+    "Returns the authenticated user's session info. `type` is how this MCP session " +
+    "authenticated — always 'UserKey', the server's only auth flow. `accountLoginType` is a " +
+    "different fact: how the underlying GoCertius account itself signs in ('Password' or " +
+    "'OpenId'), reported from GET /profile, null if the API omits it. " +
+    "Use this to retrieve the userId (UUID) required by case_file_list and other user-scoped " +
+    "operations, or to verify who is authenticated. " +
+    "profile_get is the canonical way to obtain the userId and returns more of the profile. " +
     "Prerequisites: a valid session (call session_login first if needed). " +
-    "Example: session_info() → { userId: '...uuid...', type: 'Password' }",
+    "Example: session_info() → { userId: '...uuid...', type: 'UserKey', accountLoginType: 'Password' }",
   inputSchema: z.object({}),
   annotations: {
     title: "Session Info",
@@ -38,75 +38,28 @@ export const session_info = defineTool({
   idempotencyWindowSeconds: 60,
   async execute(_input, ctx) {
     const token = ctx.auth?.token ?? "";
-    const email = process.env.MCP_AUTH_EMAIL ?? "";
 
-    // User-key flow: no email is configured (detect.ts rejects combining the
-    // flows), so /session-info/{email} is unreachable. GET /profile identifies
-    // the caller from the session token alone; its `id` is the userId.
-    if (!email) {
-      const profile = await fetchCallerProfile(BASE_URL, token);
-      return {
-        userId: profile.id,
-        type: "UserKey",
-        email: profile.email ?? null,
-        companyId: profile.companyId ?? null,
-        defaultCaseFileId: profile.defaultCaseFileId ?? null,
-      };
-    }
+    // GET /profile identifies the caller from the session token alone; its `id` is the
+    // userId. Routed through `fetchCallerProfile` deliberately: it throws UpstreamHttpError,
+    // the only class `isUnauthorizedError` recognises, which is what earns this tool the
+    // one-shot refresh-and-retry every other tool gets (retro review 2026-09-02 — with a
+    // hand-rolled fetch it was the single tool that could not self-heal from an expiry).
+    const profile = await fetchCallerProfile(BASE_URL, token);
 
-    // Call the /session-info/{email} endpoint
-    const sdkClient = createClient(
-      createConfig({
-        baseUrl: process.env.MCP_API_BASE_URL ?? "https://api-gocertius.gocertius.io",
-        headers: { Authorization: `Bearer ${token}` },
-      }),
-    );
-
-    const response = await showSessionInfoControllerRun({
-      client: sdkClient,
-      path: { email },
-    });
-
-    if (response.error !== undefined) {
-      const msg =
-        typeof response.error === "object" && response.error !== null
-          ? JSON.stringify(response.error)
-          : String(response.error);
-      throw new Error(`session_info API error: ${msg}`);
-    }
-
-    // Decode JWT payload to extract userId from sub claim
-    const userId = extractUserIdFromJwt(token);
-
-    // The real API may return userId in the response even though the spec omits it.
-    // Merge it in either way so callers always get userId.
-    const apiData = response.data as Record<string, unknown>;
     return {
-      ...apiData,
-      userId: apiData.userId ?? apiData.user_id ?? apiData.sub ?? userId ?? null,
+      userId: profile.id,
+      // How THIS MCP session authenticated. A constant since STR-E18-03: the user key is
+      // the server's only flow, so there is nothing left to infer (it used to be derived
+      // from the absence of the retired email credential). Deliberately NOT sourced from
+      // /profile's loginInfo.type, whose enum is ["Password","OpenId"] and has no
+      // "UserKey" member — that field answers the next question down, not this one.
+      type: "UserKey",
+      // How the ACCOUNT signs in to the product: "Password" | "OpenId". Spec-required, but
+      // read defensively — a missing loginInfo reports null rather than crashing the tool.
+      accountLoginType: profile.loginInfo?.type ?? null,
+      email: profile.email ?? null,
+      companyId: profile.companyId ?? null,
+      defaultCaseFileId: profile.defaultCaseFileId ?? null,
     };
   },
 });
-
-/**
- * Decodes the payload section of a JWT (without verification) and returns
- * the `sub` claim, which GoCertius uses as the user UUID.
- */
-function extractUserIdFromJwt(token: string): string | null {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    const payload = parts[1] ?? "";
-    // Add padding so atob / Buffer can decode it
-    const padded = payload + "=".repeat((4 - (payload.length % 4)) % 4);
-    const decoded =
-      typeof Buffer !== "undefined"
-        ? Buffer.from(padded, "base64").toString("utf-8")
-        : atob(padded);
-    const claims = JSON.parse(decoded) as Record<string, unknown>;
-    const sub = claims.sub ?? claims.userId ?? claims.user_id;
-    return typeof sub === "string" ? sub : null;
-  } catch {
-    return null;
-  }
-}

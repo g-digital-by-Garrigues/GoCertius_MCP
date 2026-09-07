@@ -17,7 +17,7 @@ const inputSchema = rawInputSchema;
 
 export const notification_receiver_add = defineTool({
   name: "notification_receiver_add",
-  description: "Adds a recipient to a notification request. Requires: notification_request_create → notificationRequestId, case_file_create → caseFileId. The `id` can be a UUID v4 or custom string (e.g. your internal user ID). Returns receiverId — save it for notification_certificate_get. Add all receivers before calling notification_request_send.",
+  description: "Adds a recipient to a notification request. Requires: notification_request_create → notificationRequestId, case_file_create → caseFileId. The `id` can be a UUID v4 or custom string (e.g. your internal user ID). Returns receiverId — save it for notification_certificate_get. Delivery is by email always; set sendWaUrl for a WhatsApp link, sendSmsUrl for an RCS/SMS link (the channel negotiates: RCS where the handset supports it, SMS otherwise), and otpRequired to challenge the recipient with a one-time code. Any of those three needs phonePrefix (with the +) and phoneNumber. Add all receivers before calling notification_request_send — but if the notification has attachments, add those FIRST (see notification_document_add).",
   inputSchema,
   annotations: {
     title: "Notification Receiver Add",

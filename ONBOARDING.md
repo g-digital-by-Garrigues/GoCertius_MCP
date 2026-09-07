@@ -8,11 +8,7 @@ Get from zero to your first tool call in under 5 minutes.
 
 Visit [https://www.gocertius.io](https://www.gocertius.io) to create an account or obtain API credentials.
 
-You will need either:
-- **Email + password** — an interactive login, or
-- **User key** — a long-lived key for automated / headless use
-
-Configure one or the other, not both.
+You will need a **user key** — a long-lived key issued in the product, exchanged automatically for a short-lived session token.
 
 ---
 
@@ -32,25 +28,13 @@ Add this block inside `"mcpServers"`:
   "command": "npx",
   "args": ["-y", "@g-digital/mcp-gocertius"],
   "env": {
-    "MCP_AUTH_EMAIL": "your-email@example.com",
-    "MCP_AUTH_PASSWORD": "your-password"
+    "MCP_AUTH_USER_KEY": "your-user-key",
+    "MCP_API_BASE_URL": "https://api-gocertius.gocertius.io"
   }
 }
 ```
 
-Replace `your-email@example.com` and `your-password` with your real credentials.
-
-### User key (alternative — no password in config)
-
-```json
-"gocertius": {
-  "command": "npx",
-  "args": ["-y", "@g-digital/mcp-gocertius"],
-  "env": {
-    "MCP_AUTH_USER_KEY": "your-user-key"
-  }
-}
-```
+Replace `your-user-key` with your real user key. Leave `MCP_API_BASE_URL` as it is — it already points at the production API root, which is where your user key is exchanged for a session token; change it only to target another environment.
 
 ---
 
@@ -83,6 +67,7 @@ This package includes step-by-step guides as Claude Code slash-commands. After s
 - `/evidence-lifecycle` — opens a guided workflow
 - `/dossier-lifecycle` — opens a guided workflow
 - `/notification-lifecycle` — opens a guided workflow
+- `/notification-attachments` — opens a guided workflow
 - `/chat-lifecycle` — opens a guided workflow
 
 ---
@@ -93,7 +78,7 @@ This package includes step-by-step guides as Claude Code slash-commands. After s
 |---------|-------------|-----|
 | `"Missing Authorization: Bearer <jwt>"` | HTTP mode: no Bearer header sent | Use stdio mode (npx) or add the Bearer header to your client |
 | `"JWT is expired"` | Session token has expired | Claude will auto-refresh; if it fails, restart the server |
-| `"Upstream HTTP 401"` | Wrong credentials | Re-check `MCP_AUTH_EMAIL` / `MCP_AUTH_PASSWORD` in your config |
+| `"Upstream HTTP 401"` | Wrong credentials | Re-check `MCP_AUTH_USER_KEY` in your config |
 | `"Upstream HTTP 503"` | API temporarily unavailable | Wait 1–2 minutes and retry |
 | Tool not found in Claude | Server not connected | Run `/mcp` in Claude Code to verify connection; check Claude Desktop logs |
 | `Error: Cannot find package` | npm cache issue | Run `npx --yes @g-digital/mcp-gocertius` manually once to pre-warm the cache |

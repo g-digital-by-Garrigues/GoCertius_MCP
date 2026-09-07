@@ -14,7 +14,7 @@ Returns `{ authenticated: true, userId: "<uuid>", ... }`. Save `userId` — you 
 
 Alternatively, if you already have a valid session and just need `userId` without re-authenticating:
 ```
-session_info()  →  { userId: "<uuid>", type: "Password" }
+session_info()  →  { userId: "<uuid>", type: "UserKey", accountLoginType: "Password" }
 ```
 
 ## Step 1 — Find or create your case file
@@ -60,6 +60,27 @@ node -e "const {randomUUID} = require('crypto'); console.log(randomUUID())"
 
 ❌ Do NOT invent UUIDs like `c3d4e5f6-a7b8-4901-cdef-...` — the `cdef` 4th group fails validation.
 ✅ A valid example: `4dbee9f1-2fcf-4ff9-aa50-53e72d99b617` (4th group `aa50` starts with `a`).
+
+## Credentials are managed by a human — not by you
+
+This server authenticates itself from its own environment (`MCP_AUTH_USER_KEY`). There is **no tool
+to create, list or revoke a user key**, and that is deliberate: the API returns a new key's secret
+exactly once, so minting one here would write a long-lived credential into this conversation — and
+conversations are logged, summarised and shared.
+
+The three failure modes are not the same thing. If the credential is **missing**, the server does
+not start at all — it fails closed with an auth-config error rather than booting unauthenticated,
+so you will never get as far as a tool call. If it is **expired or revoked**, tools return `401` at
+call time. Either way: say what happened and stop; do not try to work around it. The fix is a human one: the account owner mints a key, puts it in the server's
+environment, and restarts the server. The procedure is in the project's credential-rotation
+runbook.
+
+**Never ask anyone to paste a key into the chat.** If one appears here anyway, tell them to revoke
+it — it must be treated as compromised.
+
+Expect this to change. The platform's authentication model is still settling: a future version may
+require a second factor to mint a key, or remove that ability from the API altogether. A `401` that
+appears without the key having expired is worth reporting rather than retrying.
 
 ## Common first-time mistakes
 
