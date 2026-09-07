@@ -187,10 +187,14 @@ export function missingCredentialsError(operation: string): McpErrorContent {
   return toolError({
     operation,
     upstream: new Error("No credentials configured"),
+    // Names only the two flows mcp-core still has (STR-E18-02). This is also the
+    // remediation an operator sees after upgrading without migrating: a retired
+    // credential variable is simply unknown, so the server boots and every
+    // auth-requiring tool lands here instead of crashing at startup.
     remediation:
       "Configure authentication before calling this tool — service account " +
-      "(MCP_SVC_TOKEN_URL + MCP_SVC_CLIENT_ID + MCP_SVC_CLIENT_SECRET) or user credentials " +
-      "(MCP_AUTH_EMAIL + MCP_AUTH_PASSWORD, or MCP_AUTH_USER_KEY), then retry.",
+      "(MCP_SVC_TOKEN_URL + MCP_SVC_CLIENT_ID + MCP_SVC_CLIENT_SECRET) or a user key " +
+      "(MCP_AUTH_USER_KEY), then retry.",
   });
 }
 
@@ -267,4 +271,60 @@ export class UpstreamHttpError extends Error {
 
     return new UpstreamHttpError(status, message, fieldErrors, code);
   }
+}
+
+/**
+ * Render a parsed upstream error body as one line of text (Story E19 code review).
+ *
+ * Custom composite tools collect per-item failures into a result array instead of
+ * throwing, so they need a string — but the SDK hands back an already-PARSED error
+ * BODY, not an Error, and `String(body)` yields "[object Object]" (observed live
+ * against production on 2026-09-04). Extract the useful fields, de-duplicating the
+ * repeats that Nest's default error shape produces: `{statusCode, message:"Forbidden",
+ * error:"Forbidden"}` must render as `Forbidden`, not `Forbidden: Forbidden`.
+ */
+export function describeUpstreamError(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "string") return err;
+  if (typeof err === "object" && err !== null) {
+    const o = err as Record<string, unknown>;
+    const parts: string[] = [];
+    for (const key of ["code", "message", "error"] as const) {
+      const v = o[key];
+      if (typeof v === "string" && v.length > 0 && !parts.includes(v)) parts.push(v);
+    }
+    if (parts.length > 0) return parts.join(": ");
+    return JSON.stringify(err);
+  }
+  return String(err);
+}
+
+/** The `{ data, error, request, response }` envelope every Hey API SDK function returns. */
+export interface SdkErrorEnvelope {
+  error?: unknown;
+  response?: { status?: number };
+}
+
+/**
+ * Build an `UpstreamHttpError` from an SDK error branch (Story E19 code review).
+ *
+ * The generated tool template inlines this exact expression, and the composite custom
+ * tools need it too. Living here rather than being copy-pasted per tool is what makes
+ * it unit-testable: `products/*&#47;custom-tools/**` import `../api/sdk.gen.js`, which only
+ * exists inside an emitted repo, so vitest cannot load those files at all.
+ *
+ * **Throw the result — do not hand it to `ctx.toolError`.** `toolError` returns a
+ * structured object, so `executeWithAuthRetry`'s `isUnauthorizedError` never sees it and
+ * a 401 loses its refresh-and-retry; it also drops `fieldErrors`, which only
+ * `mapUpstreamError` renders. Throwing routes through both.
+ */
+export function upstreamFromSdkResponse(
+  response: SdkErrorEnvelope | undefined,
+  operation: string,
+): UpstreamHttpError {
+  return UpstreamHttpError.fromParsedError(
+    response?.response?.status ?? 0,
+    response?.error,
+    operation,
+  );
 }

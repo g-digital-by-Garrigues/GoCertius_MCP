@@ -3,19 +3,21 @@
 
 // Auth
 export { AuthConfigError, detectAuthAdapter } from "./auth/detect.js";
-export { EmailPasswordAdapter } from "./auth/email-password.js";
 export type { CallerProfile } from "./auth/profile.js";
 export { fetchCallerProfile, fetchCallerUserId } from "./auth/profile.js";
 export type { AuthAdapter, AuthContext } from "./auth/session.js";
 export { AuthSession, createAuthSession } from "./auth/session.js";
+export { jwtExpiryMs, UserKeyAdapter } from "./auth/user-key.js";
 export type { McpErrorContent, ToolErrorOpts } from "./errors/index.js";
 // Error handling
 export {
+  describeUpstreamError,
   inferRemediation,
   mapUpstreamError,
   mapZodError,
   toolError,
   UpstreamHttpError,
+  upstreamFromSdkResponse,
 } from "./errors/index.js";
 export type { FileResolverConfig, ResolvedFile } from "./files/index.js";
 // File ingestion (E3, ADR-A3)

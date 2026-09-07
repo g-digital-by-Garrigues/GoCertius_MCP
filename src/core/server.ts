@@ -21,11 +21,11 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ZodRawShape } from "zod";
 import { z } from "zod";
 import { AuthConfigError, detectAuthAdapter } from "./auth/detect.js";
-import { deviceFlowStore } from "./auth/device-flow.js";
 import { createBearerIntrospector } from "./auth/introspect.js";
 import { executeWithAuthRetry } from "./auth/retry.js";
 import type { AuthSession } from "./auth/session.js";
 import { createAuthSession } from "./auth/session.js";
+import { jwtExpiryMs } from "./auth/user-key.js";
 import {
   toolError as buildToolError,
   inferRemediation,
@@ -86,7 +86,6 @@ function getSseBridgeConfig(
         resultExtractor: (e) => e.data,
       };
     case "signature_request_create":
-    case "signature_request_full_create":
       return {
         filter: signatureRequestFilter(String(input.id ?? input.requestId ?? "")),
         terminal: signatureRequestTerminal,
@@ -97,6 +96,67 @@ function getSseBridgeConfig(
   }
 }
 
+/**
+ * True when this process is a shared / multi-tenant HTTP deployment (STR-E18-04).
+ *
+ * The exact-string test is deliberate. `transport/http.ts` already gates every
+ * public-mode protection on `process.env.MCP_HTTP_PUBLIC === "true"` and warns at boot
+ * when the variable is set to something that is not exactly that ("TRUE", "1", "yes").
+ * A second, looser reading of the same variable here would let the advertised tool
+ * surface and the transport's protections disagree about whether the deployment is
+ * public, which is worse than either answer on its own.
+ *
+ * Process-level, never per-request: the stateless HTTP factory builds a fresh
+ * `McpServer` for every request, but this answer cannot change between them.
+ */
+function isSharedHttpDeployment(): boolean {
+  return process.env.MCP_HTTP_PUBLIC === "true";
+}
+
+/**
+ * Drops the tools that must not exist in a shared / multi-tenant deployment, logging
+ * each omission once (STR-E18-04).
+ *
+ * A tool declaring `operatesOnServerSession` (today: `session_login`) acts on the
+ * SERVER's own credential. On a shared server there is no such thing to act on: every
+ * caller arrives with its own `Authorization: Bearer` token, and a server-side
+ * credential — if the operator configured one at all — is the OPERATOR's. Calling the
+ * tool would therefore either do nothing useful or re-authenticate as the operator and
+ * hand the operator's identity back to whichever client asked. Refusing to register it
+ * means it never appears in `tools/list` and a `tools/call` for it fails as an unknown
+ * tool, which is the honest answer; an agent never discovers it and reasons about why
+ * it keeps failing.
+ *
+ * Called ONCE per process, before either registration loop, for two reasons: the log
+ * line is then a startup fact rather than per-request noise, and the stateless HTTP
+ * factory and the stdio path cannot drift apart — a gate in only one of them is a hole.
+ *
+ * Exported for tests only (same seam as `registerPollableTool`); deliberately NOT
+ * re-exported from index.ts, so it is not part of the package's public surface.
+ */
+export function selectRegistrableTools(
+  tools: ToolSpec[],
+  log: ReturnType<typeof createLogger>,
+): ToolSpec[] {
+  if (!isSharedHttpDeployment()) return tools;
+  const registrable: ToolSpec[] = [];
+  for (const tool of tools) {
+    if (tool.operatesOnServerSession) {
+      // `{ tool }` only: logger.ts filters log fields against an allow-list, so a
+      // `reason` key would be silently dropped — the reason lives in the message.
+      log.info(
+        { tool: tool.name },
+        `Tool "${tool.name}" is NOT registered: MCP_HTTP_PUBLIC=true marks this server as ` +
+          "shared, so it holds no credential session of its own for the tool to act on — " +
+          "each caller authenticates with its own Bearer token (STR-E18-04).",
+      );
+      continue;
+    }
+    registrable.push(tool);
+  }
+  return registrable;
+}
+
 export async function createServer(config: ServerConfig): Promise<void> {
   const log = createLogger();
   const idempotency = new IdempotencyCache();
@@ -105,20 +165,24 @@ export async function createServer(config: ServerConfig): Promise<void> {
   // single shared instance keeps Tasks working across separate stateless HTTP requests.
   const taskStore = new InMemoryTaskStore();
 
-  const preseededJwt = process.env.MCP_AUTH_JWT;
-  if (preseededJwt) {
-    deviceFlowStore.set(preseededJwt, Date.now() + 8 * 3_600_000);
-    log.info("MCP_AUTH_JWT provided — pre-seeding auth session.");
-  }
-
+  // Fail-closed (retro review 2026-09-02). This used to catch AuthConfigError, log it
+  // and continue with authSession = null: the server came up reporting healthy while
+  // every upstream call went out unauthenticated, and the configured credential was
+  // silently ignored — the first symptom was a 401 far from the cause. STR-E15-04's
+  // own epic doc called that "worse than refusing to start", so now it refuses.
+  // A genuinely empty environment still boots (detectAuthAdapter returns null,
+  // FR-E-013) — only a misconfiguration throws.
   let authSession: AuthSession | null = null;
   try {
     const adapter = detectAuthAdapter();
     if (adapter) authSession = createAuthSession(adapter);
   } catch (err) {
     if (err instanceof AuthConfigError) {
-      log.error({ err }, `Auth config error: ${err.message}`);
+      log.error({ err }, `Auth config error — refusing to start: ${err.message}`);
+    } else {
+      log.error({ err }, "Unexpected error while detecting auth configuration.");
     }
+    throw err;
   }
 
   const BASE_URL = process.env.MCP_API_BASE_URL ?? "";
@@ -145,6 +209,12 @@ export async function createServer(config: ServerConfig): Promise<void> {
     process.env.MCP_BRIDGE_STATE_FILE,
     (toolName, filterKey) => getSseBridgeConfig(toolName, { id: filterKey }),
   );
+
+  // STR-E18-04: settle the registered tool surface ONCE, before either registration
+  // loop below, so the stateless HTTP factory (which rebuilds an McpServer per request)
+  // and the stdio path always advertise the same tools, and any withheld-tool log line
+  // is emitted a single time at startup.
+  const registrableTools = selectRegistrableTools(config.tools, log);
 
   const transport = selectTransport();
 
@@ -178,7 +248,7 @@ export async function createServer(config: ServerConfig): Promise<void> {
         },
         taskStore,
       } as any);
-      for (const tool of config.tools) {
+      for (const tool of registrableTools) {
         if (tool.pollable) {
           registerPollableTool(
             requestServer,
@@ -221,7 +291,7 @@ export async function createServer(config: ServerConfig): Promise<void> {
       },
       taskStore,
     } as any);
-    for (const tool of config.tools) {
+    for (const tool of registrableTools) {
       if (tool.pollable) {
         registerPollableTool(
           mcpServer,
@@ -259,7 +329,11 @@ export async function createServer(config: ServerConfig): Promise<void> {
 
 // ── Sync tool ─────────────────────────────────────────────────────────────────
 
-function registerSyncTool(
+// Exported for tests only (STR-E18-04), mirroring `registerPollableTool`'s existing
+// seam: it lets a test drive a real McpServer through the sync path and assert what
+// lands in ctx.auth and whether the 401 retry fires. Deliberately NOT re-exported from
+// index.ts — it is not part of the package's public surface.
+export function registerSyncTool(
   mcpServer: McpServer,
   tool: ToolSpec,
   authSession: AuthSession | null,
@@ -291,12 +365,16 @@ function registerSyncTool(
       // distinct from idempKey above, which is the internal LRU cache key.
       const idempotencyKeyHeader = buildIdempotencyKeyHeader(pkg, version, tool.name, input);
 
-      // HTTP mode: per-request JWT from Bearer header takes precedence over server auth
+      // HTTP mode: per-request JWT from Bearer header takes precedence over server auth.
+      // `operatesOnServerSession` tools get no injected token at all (STR-E18-04, which
+      // replaced a hardcoded comparison of tool.name against the session_login literal):
+      // re-establishing the session IS their job, so the stale token is meaningless to
+      // them — they reach the session through ctx.reauthenticate instead.
       const httpCtx = httpRequestContext.getStore();
       let auth = null;
       if (httpCtx?.jwt) {
         auth = { token: httpCtx.jwt, expiresAt: Number.POSITIVE_INFINITY };
-      } else if (authSession && tool.name !== "session_login") {
+      } else if (authSession && !tool.operatesOnServerSession) {
         try {
           const token = await authSession.getToken();
           auth = { token, expiresAt: Date.now() + 3600_000 };
@@ -314,14 +392,24 @@ function registerSyncTool(
         return missingCredentialsError(tool.name);
       }
 
-      // 401 refresh-retry-once: only for server-managed auth (not per-request Bearer, not session_login).
-      const canRefresh = !httpCtx?.jwt && authSession !== null && tool.name !== "session_login";
+      // 401 refresh-retry-once: only for server-managed auth. Excluded for a per-request
+      // Bearer (the token is the caller's, not ours to refresh) and for
+      // `operatesOnServerSession` tools (STR-E18-04, was a hardcoded name check) — the
+      // generic retry would re-exchange the credential and then re-run a tool whose
+      // whole purpose is that exchange.
+      const canRefresh = !httpCtx?.jwt && authSession !== null && !tool.operatesOnServerSession;
 
       try {
         const transport = httpCtx ? "http" : "stdio";
         const result = await executeWithAuthRetry(
           (retryAuth) => {
-            const ctx = buildToolContext(idempotencyKeyHeader, retryAuth, mcpServer, idempotency);
+            const ctx = buildToolContext(
+              idempotencyKeyHeader,
+              retryAuth,
+              mcpServer,
+              idempotency,
+              authSession,
+            );
             return withMetrics(tool.name, () => tool.execute(input, ctx), {
               ...(tool.pollable !== undefined ? { pollable: tool.pollable } : {}),
               transport,
@@ -376,12 +464,15 @@ export function registerPollableTool(
         }
         const input = parseResult.data as Record<string, unknown>;
 
-        // HTTP mode: per-request JWT takes precedence
+        // HTTP mode: per-request JWT takes precedence. Same `operatesOnServerSession`
+        // exclusion as the sync path (STR-E18-04): the flag is a property of the tool,
+        // not of the registration path, so it must hold here too even though no pollable
+        // tool declares it today.
         const httpCtx = httpRequestContext.getStore();
         let auth = null;
         if (httpCtx?.jwt) {
           auth = { token: httpCtx.jwt, expiresAt: Number.POSITIVE_INFINITY };
-        } else if (authSession && tool.name !== "session_login") {
+        } else if (authSession && !tool.operatesOnServerSession) {
           const token = await authSession.getToken();
           auth = { token, expiresAt: Date.now() + 3600_000 };
         }
@@ -416,6 +507,7 @@ export function registerPollableTool(
           auth,
           mcpServer,
           idempotency,
+          authSession,
         );
 
         // sseOnly tools wait for human action (signature, notification read) — use 7-day TTL.
@@ -632,11 +724,18 @@ export async function safeStoreTaskResult(
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
-function buildToolContext(
+/**
+ * Exported for tests only (STR-E18-02): `ctx.reauthenticate`'s defining property is
+ * WHEN it is absent, and that condition is not observable through the registered-tool
+ * path without booting a transport. Not part of the package's public API — it is not
+ * re-exported from index.ts.
+ */
+export function buildToolContext(
   idempotencyKeyHeader: string,
   auth: { token: string; expiresAt: number } | null,
   mcpServer: McpServer,
   idempotency: IdempotencyCache,
+  authSession: AuthSession | null,
 ): ToolContext {
   const httpCtx = httpRequestContext.getStore();
   return {
@@ -650,6 +749,26 @@ function buildToolContext(
     ...(httpCtx?.correlationId !== undefined ? { correlationId: httpCtx.correlationId } : {}),
     // biome-ignore lint/suspicious/noExplicitAny: ElicitRequestParams exactOptionalPropertyTypes mismatch
     elicitInput: async (params) => (await mcpServer.server.elicitInput(params as any)) as any,
+    // ctx.reauthenticate (STR-E18-02): the only way a tool can affect the session the
+    // server itself uses, now that the in-process token store is gone. Exposed ONLY
+    // when the server owns a session — omitted on a credential-less boot and when a
+    // per-request Bearer is in play, because then the token belongs to the caller and
+    // there is nothing of ours to re-exchange (the condition STR-E18-04 keys on).
+    //
+    // Routed through the shared AuthSession so single-flight, caching and the expiry
+    // clamp still apply: `refreshAfter401` is AuthSession's force-a-re-exchange entry
+    // point (adapter.refresh when a token is cached, a retrying login otherwise), and
+    // it updates the cache the rest of the server reads from. It returns the token
+    // alone, so the context's expiry comes from `jwtExpiryMs` — the single surviving
+    // expiry implementation (retro review 2026-09-02 finding 5), never a hardcoded TTL.
+    ...(authSession && !httpCtx?.jwt
+      ? {
+          reauthenticate: async () => {
+            const token = await authSession.refreshAfter401();
+            return { token, expiresAt: jwtExpiryMs(token) };
+          },
+        }
+      : {}),
   };
 }
 
