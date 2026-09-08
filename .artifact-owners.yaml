@@ -5,12 +5,16 @@
 #   unlisted:     forbidden — remove or classify before publishing
 # Entries ending in "/" are directory prefixes; a generator FILE entry inside
 # a distribution DIRECTORY wins (e.g. .github/workflows/ci.yml).
-artifact_owners_schema_version: 1
+# field_exceptions: FIELD-level ownership inside a generator-owned file. A CI
+#   gate must allow the listed owner to write those fields — package.json is
+#   generator-owned but Phase B writes its version.
+artifact_owners_schema_version: 2
 generator:
   - .artifact-owners.yaml
   - .claude/commands/
   - .claude/skills/
   - .distribution.yaml
+  - .dockerignore
   - .env.example
   - .github/workflows/ci.yml
   - .gitignore
@@ -34,4 +38,8 @@ distribution:
   - package-lock.json
   - server.json
   - smithery.yaml
+field_exceptions:
+  package.json:
+    distribution:
+      - version
 unlisted: forbidden
