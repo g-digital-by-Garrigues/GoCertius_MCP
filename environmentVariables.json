@@ -25,26 +25,14 @@
       "name": "MCP_ALLOWED_ORIGINS"
     },
     {
-      "description": "Overrides the default upstream API host for every tool",
-      "isRequired": false,
+      "description": "Upstream API root. Required: your user key is exchanged for a session token against this host, and the server will not start without it.",
+      "isRequired": true,
       "isSecret": false,
       "name": "MCP_API_BASE_URL"
     },
     {
-      "description": "Your GoCertius account email. Configure exactly one flow; do not combine it with the others.",
-      "isRequired": false,
-      "isSecret": false,
-      "name": "MCP_AUTH_EMAIL"
-    },
-    {
-      "description": "Your GoCertius account password. (See https://www.gocertius.io for credential acquisition.)",
-      "isRequired": false,
-      "isSecret": true,
-      "name": "MCP_AUTH_PASSWORD"
-    },
-    {
-      "description": "Long-lived GoCertius user key, exchanged automatically for a short-lived session token. Use it for headless or automated access instead of an account password. Configure exactly one flow; do not combine it with the others. (See https://www.gocertius.io for credential acquisition.)",
-      "isRequired": false,
+      "description": "Long-lived GoCertius user key, exchanged automatically for a short-lived session token. Use it for headless or automated access instead of an account password. (See https://www.gocertius.io for credential acquisition.)",
+      "isRequired": true,
       "isSecret": true,
       "name": "MCP_AUTH_USER_KEY"
     },
