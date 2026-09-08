@@ -16,17 +16,10 @@ configSchema:
       description: "Escape hatch for MCP_HTTP_PUBLIC=true WITHOUT inbound-token introspection: set to \"true\" ONLY when an upstream gateway already verifies Bearer tokens. The server logs a prominent warning and forwards tokens upstream unverified."
       type: string
     MCP_API_BASE_URL:
-      description: Overrides the default upstream API host for every tool
-      type: string
-    MCP_AUTH_EMAIL:
-      description: Your GoCertius account email. Configure exactly one flow; do not combine it with the others.
-      type: string
-    MCP_AUTH_PASSWORD:
-      description: Your GoCertius account password. (See https://www.gocertius.io for credential acquisition.)
-      format: password
+      description: "Upstream API root. Required: your user key is exchanged for a session token against this host, and the server will not start without it."
       type: string
     MCP_AUTH_USER_KEY:
-      description: Long-lived GoCertius user key, exchanged automatically for a short-lived session token. Use it for headless or automated access instead of an account password. Configure exactly one flow; do not combine it with the others. (See https://www.gocertius.io for credential acquisition.)
+      description: Long-lived GoCertius user key, exchanged automatically for a short-lived session token. Use it for headless or automated access instead of an account password. (See https://www.gocertius.io for credential acquisition.)
       format: password
       type: string
     MCP_HTTP_HOST:
@@ -51,6 +44,9 @@ configSchema:
     PORT:
       description: HTTP port when running in hosted (HTTP) mode; ignored in stdio mode
       type: string
+  required:
+    - MCP_API_BASE_URL
+    - MCP_AUTH_USER_KEY
   type: object
 env:
   MCP_ALLOWED_HOSTS: ""
@@ -58,7 +54,6 @@ env:
   MCP_ALLOW_INSECURE_FILE_URL: ""
   MCP_ALLOW_UNVERIFIED_BEARER: ""
   MCP_API_BASE_URL: ""
-  MCP_AUTH_EMAIL: ""
   MCP_HTTP_HOST: ""
   MCP_HTTP_MAX_BODY_BYTES: ""
   MCP_HTTP_PUBLIC: ""
