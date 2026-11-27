@@ -59,6 +59,12 @@ export interface ServerConfig {
   name: string;
   version: string;
   tools: ToolSpec[];
+  /**
+   * E22 22-20: `false` when the product's API has no notifications SSE endpoint (EAD Factory). The bridge is
+   * chosen by tool name, so without this a tool sharing a name with a GoCertius/Suite one was wired to an
+   * endpoint that does not exist, and its own bounded polling never ran. Default: enabled.
+   */
+  sseBridge?: boolean;
 }
 
 interface SseBridgeToolConfig {
@@ -190,26 +196,31 @@ export async function createServer(config: ServerConfig): Promise<void> {
 
   // SSE bridge — connects lazily when first pollable task is registered (E7, STR-E7-01).
   // Persistence: MCP_BRIDGE_STATE_FILE env var (STR-E13-02); omit to disable.
-  const sseBridge = new SseBridge(
-    async () => {
-      const token = await authSession?.getToken().catch(() => null);
-      if (!token) return null;
-      const companyId = extractCompanyIdFromJwt(token);
-      if (!companyId) {
-        log.warn(
-          "SSE bridge: companyId not in JWT — SSE unavailable, background execution active.",
+  const sseBridge: SseBridge | null =
+    config.sseBridge === false
+      ? null
+      : new SseBridge(
+          async () => {
+            const token = await authSession?.getToken().catch(() => null);
+            if (!token) return null;
+            const companyId = extractCompanyIdFromJwt(token);
+            if (!companyId) {
+              log.warn(
+                "SSE bridge: companyId not in JWT — SSE unavailable, background execution active.",
+              );
+              return null;
+            }
+            return `${BASE_URL}/notifications/sse/${encodeURIComponent(companyId)}`;
+          },
+          async () => {
+            const token = await authSession?.getToken();
+            return token ?? "";
+          },
+          process.env.MCP_BRIDGE_STATE_FILE,
+          (toolName, filterKey) => getSseBridgeConfig(toolName, { id: filterKey }),
         );
-        return null;
-      }
-      return `${BASE_URL}/notifications/sse/${encodeURIComponent(companyId)}`;
-    },
-    async () => {
-      const token = await authSession?.getToken();
-      return token ?? "";
-    },
-    process.env.MCP_BRIDGE_STATE_FILE,
-    (toolName, filterKey) => getSseBridgeConfig(toolName, { id: filterKey }),
-  );
+  if (!sseBridge)
+    log.info("SSE bridge disabled for this product: pollable tools use their own polling.");
 
   // STR-E18-04: settle the registered tool surface ONCE, before either registration
   // loop below, so the stateless HTTP factory (which rebuilds an McpServer per request)
@@ -221,7 +232,7 @@ export async function createServer(config: ServerConfig): Promise<void> {
 
   if (transport instanceof HttpTransport) {
     // Wire SSE bridge status into /healthz (STR-E8-03)
-    transport.setSseStatusProvider(() => sseBridge.connectionStatus());
+    transport.setSseStatusProvider(() => sseBridge?.connectionStatus() ?? "unused");
 
     // Inbound Bearer introspection (Story 2.3) — opt-in via MCP_SVC_INTROSPECT_URL.
     // Fail-soft: a misconfiguration logs and leaves introspection disabled; boot continues.
@@ -282,7 +293,7 @@ export async function createServer(config: ServerConfig): Promise<void> {
     await transport.start();
 
     process.on("SIGTERM", () => {
-      sseBridge.stop();
+      sseBridge?.stop();
       process.exit(0);
     });
   } else {
@@ -321,7 +332,7 @@ export async function createServer(config: ServerConfig): Promise<void> {
     await mcpServer.connect(transport);
 
     process.on("SIGTERM", async () => {
-      sseBridge.stop();
+      sseBridge?.stop();
       await mcpServer.close();
       process.exit(0);
     });
@@ -450,7 +461,7 @@ export function registerPollableTool(
   tool: ToolSpec,
   authSession: AuthSession | null,
   idempotency: IdempotencyCache,
-  sseBridge: SseBridge,
+  sseBridge: SseBridge | null,
   log: ReturnType<typeof createLogger>,
   pkg: string,
   version: string,
@@ -538,8 +549,8 @@ export function registerPollableTool(
         const taskId = task.taskId as string;
 
         // Register with SSE bridge if this tool has upstream events
-        const bridgeCfg = getSseBridgeConfig(tool.name, input);
-        if (bridgeCfg) {
+        const bridgeCfg = sseBridge ? getSseBridgeConfig(tool.name, input) : null;
+        if (sseBridge && bridgeCfg) {
           const filterKey = String(
             input.id ??
               input.requestId ??
