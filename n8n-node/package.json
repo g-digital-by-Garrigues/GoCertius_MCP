@@ -1,7 +1,7 @@
 {
   "name": "@g-digital/n8n-nodes-gocertius",
-  "version": "2.0.0",
-  "description": "MCP server for GoCertius: certified evidence, dossiers, notifications and chats via AI agents.",
+  "version": "2.1.0",
+  "description": "GoCertius MCP: evidence, simple and two-factor advanced e-signature, dossiers, notifications, chats.",
   "license": "MIT",
   "homepage": "https://github.com/g-digital-by-Garrigues/GoCertius_MCP",
   "author": { "name": "g-digital by Garrigues", "email": "g-digital@garrigues.com" },
