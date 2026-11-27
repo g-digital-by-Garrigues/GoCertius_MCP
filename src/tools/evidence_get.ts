@@ -15,7 +15,7 @@ const inputSchema = rawInputSchema;
 
 export const evidence_get = defineTool({
   name: "evidence_get",
-  description: "Retrieves a specific evidence record. Requires: evidence_create → evidenceId, evidence_group_create → evidenceGroupId, case_file_create → caseFileId. Returns status (COMPLETED|IN_PROCESS|ERROR), hash, and tspTimestamp when certified.",
+  description: "Retrieves a specific evidence record. Requires: evidence_create → evidenceId, evidence_group_create → evidenceGroupId, case_file_create → caseFileId. Returns status (COMPLETED, IN_PROCESS or ERROR), hash, and tspTimestamp when certified.",
   inputSchema,
   annotations: {
     title: "Evidence Get",
@@ -25,7 +25,7 @@ export const evidence_get = defineTool({
     openWorldHint: false,
   },
   pollable: false,
-  idempotencyWindowSeconds: 60,
+  idempotencyWindowSeconds: 0,
   async execute(input, ctx) {
     const token = ctx.auth?.token ?? "";
     const sdkClient = createClient(

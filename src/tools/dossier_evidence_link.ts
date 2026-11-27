@@ -11,11 +11,14 @@ import { defineTool } from "../core/index.js";
 export const dossier_evidence_link = defineTool({
   name: "dossier_evidence_link",
   description:
-    "Links specific evidence items to a DRAFT dossier. " +
-    "Call once per case file containing evidences to link. " +
-    "After linking all evidences, call dossier_certify to finalize. " +
-    "For a single-group dossier, use dossier_group_certify instead (one step). " +
-    "Example: dossier_evidence_link({ caseFileId: '...', dossierId: '...', caseFileToLinkId: '...', ids: ['ev-uuid-1', 'ev-uuid-2'] })",
+    "Links evidence to a DRAFT dossier. Requires: dossier_create → dossierId, caseFileId. " +
+    "caseFileToLinkId is the case file holding the evidence (often caseFileId); call once per " +
+    "such case file. Every id in `ids` must be evidence of that case file (else 403; also 403 " +
+    "if you are not the dossier's owner or lack the editor role on the case file); " +
+    "already-linked ids are skipped. Certifying needs every linked evidence COMPLETED: " +
+    "dossier_evidence_list_to_link lists those. The API does not require the evidence group to " +
+    "be sealed, but sealing it first (evidence_seal) is advised. Then call dossier_certify. For " +
+    "one evidence group, dossier_group_certify creates and certifies in one call.",
   inputSchema: z.object({
     caseFileId: z.string().describe("UUID of the case file that owns the dossier"),
     dossierId: z.string().describe("UUID of the DRAFT dossier to link evidences to"),

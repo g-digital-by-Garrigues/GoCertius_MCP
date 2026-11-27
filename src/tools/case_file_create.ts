@@ -18,10 +18,11 @@ const inputSchema = z.object({
 export const case_file_create = defineTool({
   name: "case_file_create",
   description:
-    "Creates a new case file — the top-level container for all related operations (evidence, notifications, dossiers, chats). " +
-    "Call this first before any other operation. Generate a UUID v4 for `id`. " +
-    "For `useCaseId`, use the general GoCertius use case: `063a016a-1d62-4b7b-a24f-7cf4d1d289bf` unless a specific use case is required. " +
-    "Returns caseFileId needed for all subsequent calls.",
+    "Creates a case file, the top-level container for evidence, signatures, notifications, " +
+    "dossiers and chats. Generate a UUID v4 for `id`: the API returns no body, so that `id` IS the caseFileId " +
+    "later calls need. For `useCaseId` use the General use case " +
+    "`063a016a-1d62-4b7b-a24f-7cf4d1d289bf` unless a specific one is required; it must be " +
+    "enabled for your company.",
   inputSchema,
   annotations: {
     title: "Case File Create",

@@ -13,20 +13,16 @@ import { defineTool, safeDownload } from "../core/index.js";
 export const evidence_create = defineTool({
   name: "evidence_create",
   description:
-    "Registers a NEW evidence record inside an evidence group. " +
-    "Requires: evidence_group_create → evidenceGroupId, case_file_create → caseFileId. " +
-    "Generate a UUID v4 for `id`. Compute the SHA-256 hex hash of the file BEFORE calling. " +
-    "Normal INTERNAL flow: call evidence_create with custodyType INTERNAL and NO fileUrl; " +
-    "the API returns uploadFileUrl, a presigned S3 URL. You MUST PUT the exact file bytes to " +
-    "uploadFileUrl, then verify with evidence_get/evidence_list, and ONLY THEN call evidence_seal. " +
-    "Do not seal an evidence group until every INTERNAL evidence file has been uploaded. " +
-    "Convenience flow: if you pass `fileUrl` (public HTTPS, no redirects, under 1 GiB), " +
-    "this tool downloads that URL and PUTs the bytes to uploadFileUrl for you. " +
-    "EXTERNAL flow: use custodyType EXTERNAL only when you intentionally register hash-only evidence; " +
-    "still generate a fresh UUID for each evidence. If an INTERNAL evidence creation/upload failed " +
-    "and you want to retry as EXTERNAL, create a NEW evidence id; do not reuse an id whose outcome is unknown. " +
-    "WARNING: the API sometimes returns {code:'EvidenceCreateError'} even when the evidence " +
-    "was successfully persisted — always verify with evidence_list before retrying.",
+    "Registers a NEW evidence record in an evidence group. Requires: evidence_group_create → " +
+    "evidenceGroupId, case_file_create → caseFileId. Generate a UUID v4 for `id`; compute the " +
+    "file's SHA-256 hex hash BEFORE calling. INTERNAL (default custodyType): the response " +
+    "returns uploadFileUrl, a presigned S3 URL that expires. PUT the exact bytes to it with " +
+    "header x-amz-checksum-sha256 set to the raw SHA-256 digest in base64 (not the hex), verify " +
+    "with evidence_get/evidence_list, and ONLY THEN call evidence_seal. Or pass `fileUrl` " +
+    "(public HTTPS, no redirects, max 1 GiB) and this tool downloads and uploads the file for " +
+    "you. EXTERNAL registers the hash only; use it only on purpose. WARNING: " +
+    "{code:'EvidenceCreateError'} can come back even when the evidence WAS persisted: check " +
+    "evidence_list before retrying, and never reuse an id whose outcome is unknown.",
   inputSchema: z.object({
     caseFileId: z.string().uuid().describe("UUID of the case file"),
     evidenceGroupId: z.string().uuid().describe("UUID of the evidence group"),

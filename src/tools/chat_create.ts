@@ -17,7 +17,7 @@ const inputSchema = rawInputSchema;
 
 export const chat_create = defineTool({
   name: "chat_create",
-  description: "Creates a certified chat channel (Telegram). IMPORTANT: Chats can only be created in the user's personal case file (created automatically when the GoCertius account was opened). Do not use a manually created case file — use session_info → case_file_list to find the personal case file (oldest createdAt, owned by the user). Generate a UUID v4 for `id`. Set service to Telegram. Returns immediately and the chat may start in status `creating`; call chat_get and wait until it is registered/active before requesting the invitation URL or certificates.",
+  description: "Creates a certified chat channel (Telegram). IMPORTANT: Chats can only be created in the user's personal case file (created automatically when the GoCertius account was opened). Do not use a manually created case file — its id is defaultCaseFileId in session_info. Generate a UUID v4 for `id`. Set service to Telegram. Returns immediately and the chat may start in status `creating`; call chat_get and wait until it is registered/active before requesting the invitation URL or certificates.",
   inputSchema,
   annotations: {
     title: "Chat Create",

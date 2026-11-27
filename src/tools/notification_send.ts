@@ -116,7 +116,7 @@ export const notification_send = defineTool({
     "Generates every UUID itself — do not pass any id. Requires case_file_create → caseFileId. " +
     "`content` MUST be HTML: plain text is accepted by the API and reports SENT but does not render on the recipient's landing page. Supported tags only: <p>, <strong>, <em>, <ul><li>, <ol><li> — no other tags, no CSS. Keep `subject` to plain ASCII, 100 characters maximum. " +
     "Delivery is always by email; per recipient you can additionally set sendWaUrl (WhatsApp), sendSmsUrl (RCS or SMS depending on the handset) and otpRequired (one-time code), each of which needs phonePrefix with the + and phoneNumber. " +
-    "The maximum number of recipients is a per-subscription setting, not a fixed limit, so none is enforced here — the API rejects an oversized batch. " +
+    "The recipient limit is a per-subscription setting, not enforced here; the API rejects an oversized batch. " +
     "This tool does NOT attach files; use notification_send_with_attachments for that, because attachments must be registered before recipients are added. " +
     "PARTIAL SUCCESS IS REPORTED, NOT THROWN: if the request was created but a recipient or the send failed, the result still carries notificationRequestId together with recipientsAdded, recipientsFailed and sent:false, so you can finish with notification_receiver_add and notification_request_send instead of abandoning a draft. An INVALID recipient blocks the send, so this tool checks for one before sending and reports invalidRecipients rather than attempting a send that cannot succeed. If the initial create fails the tool raises an error instead: common causes are a caseFileId that does not exist, a subject over 100 characters, and an exhausted contracted notification plan, which no retry will fix. If that error is a timeout rather than a rejection, check notification_request_list before retrying — the request may have been created anyway. " +
     "Poll notification_request_status for delivery progress, then notification_certificate_get per recipient.",
@@ -160,7 +160,7 @@ export const notification_send = defineTool({
     const token = ctx.auth?.token ?? "";
     const sdkClient = createClient(
       createConfig({
-        baseUrl: process.env.MCP_API_BASE_URL ?? "",
+        baseUrl: process.env.MCP_API_BASE_URL ?? "https://api-gocertius.gocertius.io",
         headers: {
           Authorization: `Bearer ${token}`,
           ...(ctx.correlationId ? { "X-Correlation-Id": ctx.correlationId } : {}),

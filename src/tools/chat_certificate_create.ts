@@ -17,7 +17,7 @@ const inputSchema = rawInputSchema;
 
 export const chat_certificate_create = defineTool({
   name: "chat_certificate_create",
-  description: "Creates a certificate of a range of messages from a certified chat. Requires: chat_create → chatId, personal caseFileId, chat_get → registeredAt, and messages already present in the Telegram channel. Generate a UUID v4 for `id`. Do not use createdAt as a substitute for registeredAt; if registeredAt is missing, the chat is not ready to certify. Specify chatMessagesFrom and chatMessagesTo as ISO timestamps (chatMessagesFrom must be AFTER registeredAt). ASYNC: poll chat_certificate_get until status === CERTIFIED.",
+  description: "Creates a certificate of a range of messages from a certified chat. Requires: chat_create → chatId, personal caseFileId, chat_get → registeredAt, and messages already present in the Telegram channel. Generate a UUID v4 for `id`. Do not use createdAt as a substitute for registeredAt; if registeredAt is missing, the chat is not ready to certify. Specify chatMessagesFrom and chatMessagesTo as ISO timestamps: chatMessagesFrom at or after registeredAt (else 422) and before chatMessagesTo; a future chatMessagesTo is cut to the current time. ASYNC: poll chat_certificate_get until status === CERTIFIED.",
   inputSchema,
   annotations: {
     title: "Chat Certificate Create",

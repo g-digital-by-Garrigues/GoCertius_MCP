@@ -4,6 +4,40 @@ export type ClientOptions = {
     baseUrl: string;
 };
 
+export type CreateEadtrustIdSessionControllerRunData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/eadtrust-id/session';
+};
+
+export type CreateEadtrustIdSessionControllerRunResponses = {
+    201: {
+        jwt: string;
+    };
+};
+
+export type CreateEadtrustIdSessionControllerRunResponse = CreateEadtrustIdSessionControllerRunResponses[keyof CreateEadtrustIdSessionControllerRunResponses];
+
+export type CreateEadtrustIdSessionWithLegalTextsControllerRunData = {
+    body: {
+        legalTextLanguage: 'en_GB' | 'es_ES';
+        acceptServiceTermId?: string;
+        acceptPrivacyPolicyId?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/eadtrust-id/session-with-legal-texts';
+};
+
+export type CreateEadtrustIdSessionWithLegalTextsControllerRunResponses = {
+    201: {
+        jwt: string;
+    };
+};
+
+export type CreateEadtrustIdSessionWithLegalTextsControllerRunResponse = CreateEadtrustIdSessionWithLegalTextsControllerRunResponses[keyof CreateEadtrustIdSessionWithLegalTextsControllerRunResponses];
+
 export type CreateOpenIdSessionControllerRunData = {
     body?: never;
     path?: never;
@@ -1311,6 +1345,7 @@ export type CreateDossierControllerRunData = {
         validityFrom: string;
         validityTo: string;
         accessToken?: string;
+        embeddedEvidences?: boolean;
     };
     path: {
         caseFileId: string;
@@ -1409,6 +1444,7 @@ export type ShowDossierControllerRunResponses = {
             lastName: string;
         };
         accessToken?: string;
+        embeddedEvidences: boolean;
         evidenceStats: {
             total: number;
             completed: number;
@@ -1440,6 +1476,7 @@ export type UpdateDossierControllerRunData = {
         validityFrom?: string;
         validityTo?: string;
         accessToken?: string;
+        embeddedEvidences?: boolean;
     };
     path: {
         caseFileId: string;
@@ -3397,6 +3434,1522 @@ export type UpdateNotificationRequestCaseFileIdControllerRunResponses = {
     200: unknown;
 };
 
+export type ListSignaturePartialCertificatesControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+    };
+    query?: {
+        filter?: {
+            id?: string;
+        };
+        order?: {
+            createdAt?: 'ASC' | 'DESC';
+        };
+        page?: {
+            number: number;
+            size: number;
+        };
+    };
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}/partial-certificates';
+};
+
+export type ListSignaturePartialCertificatesControllerRunResponses = {
+    200: {
+        data?: Array<{
+            id: string;
+            requestId: string;
+            documentId: string;
+            status: 'CERTIFYING' | 'DRAFT' | 'CERTIFIED';
+            createdAt: string;
+            certifiedAt?: string;
+        }>;
+        meta?: {
+            totalElements?: number;
+        };
+    };
+};
+
+export type ListSignaturePartialCertificatesControllerRunResponse = ListSignaturePartialCertificatesControllerRunResponses[keyof ListSignaturePartialCertificatesControllerRunResponses];
+
+export type CreateSignaturePartialCertificateControllerRunData = {
+    body: {
+        id: string;
+    };
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}/partial-certificates';
+};
+
+export type CreateSignaturePartialCertificateControllerRunResponses = {
+    201: unknown;
+};
+
+export type ProcessSignatureCertificatesCallbackControllerRunData = {
+    body: {
+        operationType: 'REPORTS';
+        data: {
+            processId: string;
+        };
+    };
+    path?: never;
+    query?: never;
+    url: '/signature-certificates/callback';
+};
+
+export type ProcessSignatureCertificatesCallbackControllerRunResponses = {
+    204: void;
+};
+
+export type ProcessSignatureCertificatesCallbackControllerRunResponse = ProcessSignatureCertificatesCallbackControllerRunResponses[keyof ProcessSignatureCertificatesCallbackControllerRunResponses];
+
+export type ShowSignatureCertificateDocumentUrlControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}/certificates/document-url';
+};
+
+export type ShowSignatureCertificateDocumentUrlControllerRunResponses = {
+    200: {
+        documentUrl: string;
+    };
+};
+
+export type ShowSignatureCertificateDocumentUrlControllerRunResponse = ShowSignatureCertificateDocumentUrlControllerRunResponses[keyof ShowSignatureCertificateDocumentUrlControllerRunResponses];
+
+export type ShowSignatureCertificatePackageUrlControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}/certificates/package-url';
+};
+
+export type ShowSignatureCertificatePackageUrlControllerRunResponses = {
+    200: {
+        packageUrl: string;
+    };
+};
+
+export type ShowSignatureCertificatePackageUrlControllerRunResponse = ShowSignatureCertificatePackageUrlControllerRunResponses[keyof ShowSignatureCertificatePackageUrlControllerRunResponses];
+
+export type ShowSignatureCertificateSignaturesUrlControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}/certificates/signatures-url';
+};
+
+export type ShowSignatureCertificateSignaturesUrlControllerRunResponses = {
+    200: {
+        signaturesUrl: string;
+    };
+};
+
+export type ShowSignatureCertificateSignaturesUrlControllerRunResponse = ShowSignatureCertificateSignaturesUrlControllerRunResponses[keyof ShowSignatureCertificateSignaturesUrlControllerRunResponses];
+
+export type ShowSignatureDocumentSignedDocumentUrlControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}/signed-document-url';
+};
+
+export type ShowSignatureDocumentSignedDocumentUrlControllerRunResponses = {
+    200: {
+        signedDocumentUrl: string;
+    };
+};
+
+export type ShowSignatureDocumentSignedDocumentUrlControllerRunResponse = ShowSignatureDocumentSignedDocumentUrlControllerRunResponses[keyof ShowSignatureDocumentSignedDocumentUrlControllerRunResponses];
+
+export type ShowSignaturePartialCertificateDocumentUrlControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+        certificateId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}/partial-certificates/{certificateId}/document-url';
+};
+
+export type ShowSignaturePartialCertificateDocumentUrlControllerRunResponses = {
+    200: {
+        documentUrl: string;
+    };
+};
+
+export type ShowSignaturePartialCertificateDocumentUrlControllerRunResponse = ShowSignaturePartialCertificateDocumentUrlControllerRunResponses[keyof ShowSignaturePartialCertificateDocumentUrlControllerRunResponses];
+
+export type ShowSignaturePartialCertificatePackageUrlControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+        certificateId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}/partial-certificates/{certificateId}/package-url';
+};
+
+export type ShowSignaturePartialCertificatePackageUrlControllerRunResponses = {
+    200: {
+        packageUrl: string;
+    };
+};
+
+export type ShowSignaturePartialCertificatePackageUrlControllerRunResponse = ShowSignaturePartialCertificatePackageUrlControllerRunResponses[keyof ShowSignaturePartialCertificatePackageUrlControllerRunResponses];
+
+export type ShowSignaturePartialCertificateSignaturesUrlControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+        certificateId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}/partial-certificates/{certificateId}/signatures-url';
+};
+
+export type ShowSignaturePartialCertificateSignaturesUrlControllerRunResponses = {
+    200: {
+        signaturesUrl: string;
+    };
+};
+
+export type ShowSignaturePartialCertificateSignaturesUrlControllerRunResponse = ShowSignaturePartialCertificateSignaturesUrlControllerRunResponses[keyof ShowSignaturePartialCertificateSignaturesUrlControllerRunResponses];
+
+export type ActivateSignatureRequestControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/activate';
+};
+
+export type ActivateSignatureRequestControllerRunResponses = {
+    200: unknown;
+};
+
+export type CancelSignatureRequestControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/cancel';
+};
+
+export type CancelSignatureRequestControllerRunResponses = {
+    200: unknown;
+};
+
+export type CloseSignatureRequestControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/close';
+};
+
+export type CloseSignatureRequestControllerRunResponses = {
+    200: unknown;
+};
+
+export type CreateDocumentParticipantsControllerRunData = {
+    body: {
+        participantIds: Array<string>;
+    };
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}/participants';
+};
+
+export type CreateDocumentParticipantsControllerRunResponses = {
+    201: unknown;
+};
+
+export type CreateMassiveSignatureParticipantsControllerRunData = {
+    body: {
+        participants: Array<{
+            id: string;
+            role: 'SIGNATORY' | 'OBSERVER' | 'VALIDATOR';
+            firstName: string;
+            lastName: string;
+            email: string;
+            phoneNumber?: string;
+            phonePrefix?: string;
+        }>;
+    };
+    path: {
+        caseFileId: string;
+        requestId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/participants/massive';
+};
+
+export type CreateMassiveSignatureParticipantsControllerRunResponses = {
+    201: unknown;
+};
+
+export type ListSignatoryValidatorsControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        signatoryId: string;
+    };
+    query?: {
+        page?: {
+            number: number;
+            size: number;
+        };
+    };
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/signatories/{signatoryId}/validators';
+};
+
+export type ListSignatoryValidatorsControllerRunResponses = {
+    200: {
+        data?: Array<{
+            id: string;
+            email: string;
+            firstName: string;
+            lastName: string;
+        }>;
+        meta?: {
+            totalElements?: number;
+        };
+    };
+};
+
+export type ListSignatoryValidatorsControllerRunResponse = ListSignatoryValidatorsControllerRunResponses[keyof ListSignatoryValidatorsControllerRunResponses];
+
+export type CreateSignatoryValidatorsControllerRunData = {
+    body: {
+        validatorIds: Array<string>;
+    };
+    path: {
+        caseFileId: string;
+        requestId: string;
+        signatoryId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/signatories/{signatoryId}/validators';
+};
+
+export type CreateSignatoryValidatorsControllerRunResponses = {
+    201: unknown;
+};
+
+export type ListSignatureDocumentsControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+    };
+    query?: {
+        filter?: {
+            status?: 'PENDING' | 'READY_TO_SIGN' | 'PARTIALLY_SIGNED' | 'SIGNED' | 'REJECTED' | 'ERROR';
+            fileName?: string;
+            groupIds?: Array<string>;
+        };
+        order?: {
+            createdAt?: 'ASC' | 'DESC';
+            groupIndex?: 'ASC' | 'DESC';
+        };
+        page?: {
+            number: number;
+            size: number;
+        };
+    };
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents';
+};
+
+export type ListSignatureDocumentsControllerRunResponses = {
+    200: {
+        data?: Array<{
+            id: string;
+            requestId: string;
+            groupId?: string;
+            status: 'PENDING' | 'READY_TO_SIGN' | 'PARTIALLY_SIGNED' | 'SIGNED' | 'REJECTED' | 'ERROR';
+            title: string;
+            fileName: string;
+            fileSize?: number;
+            convertToPdf: boolean;
+            participantStats: {
+                signatories: number;
+                observers: number;
+            };
+            signatoryStatusStats: {
+                pending: number;
+                readyToSign: number;
+                signed: number;
+                rejected: number;
+            };
+            signatoryCoordinatesStats: {
+                defined: number;
+                missing: number;
+            };
+        }>;
+        meta?: {
+            totalElements?: number;
+        };
+    };
+};
+
+export type ListSignatureDocumentsControllerRunResponse = ListSignatureDocumentsControllerRunResponses[keyof ListSignatureDocumentsControllerRunResponses];
+
+export type CreateSignatureDocumentControllerRunData = {
+    body: {
+        id: string;
+        groupId?: string;
+        hash: string;
+        title: string;
+        fileName: string;
+        fileSize?: number;
+        convertToPdf?: boolean;
+    };
+    path: {
+        caseFileId: string;
+        requestId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents';
+};
+
+export type CreateSignatureDocumentControllerRunResponses = {
+    201: {
+        url?: string;
+    };
+};
+
+export type CreateSignatureDocumentControllerRunResponse = CreateSignatureDocumentControllerRunResponses[keyof CreateSignatureDocumentControllerRunResponses];
+
+export type ListSignatureGroupsControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+    };
+    query?: {
+        filter?: {
+            type?: 'Document' | 'DocumentSignatory' | 'Signatory';
+            documentId?: string;
+            id?: string;
+        };
+        order?: {
+            createdAt?: 'ASC' | 'DESC';
+        };
+        page?: {
+            number: number;
+            size: number;
+        };
+    };
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/groups';
+};
+
+export type ListSignatureGroupsControllerRunResponses = {
+    200: {
+        data?: Array<{
+            id: string;
+            requestId: string;
+            documentId?: string;
+            type: string;
+            index: number;
+        }>;
+        meta?: {
+            totalElements?: number;
+        };
+    };
+};
+
+export type ListSignatureGroupsControllerRunResponse = ListSignatureGroupsControllerRunResponses[keyof ListSignatureGroupsControllerRunResponses];
+
+export type CreateSignatureGroupControllerRunData = {
+    body: {
+        id: string;
+        documentId?: string;
+        type: 'Document' | 'DocumentSignatory' | 'Signatory';
+    };
+    path: {
+        caseFileId: string;
+        requestId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/groups';
+};
+
+export type CreateSignatureGroupControllerRunResponses = {
+    201: unknown;
+};
+
+export type ListSignatureParticipantsControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+    };
+    query?: {
+        filter?: {
+            role?: 'SIGNATORY' | 'OBSERVER' | 'VALIDATOR';
+            groupIds?: Array<string>;
+            id?: string;
+        };
+        order?: {
+            createdAt?: 'ASC' | 'DESC';
+            groupIndex?: 'ASC' | 'DESC';
+            email?: 'ASC' | 'DESC';
+        };
+        page?: {
+            number: number;
+            size: number;
+        };
+    };
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/participants';
+};
+
+export type ListSignatureParticipantsControllerRunResponses = {
+    200: {
+        data?: Array<{
+            id: string;
+            requestId: string;
+            groupId?: string;
+            role: string;
+            firstName?: string;
+            lastName?: string;
+            email?: string;
+            createdAt: string;
+            sendWaUrl: boolean;
+            sendSmsUrl: boolean;
+            phoneNumber?: string;
+            phonePrefix?: string;
+            participantStats?: {
+                validators: number;
+            };
+            documentStats?: {
+                signed: number;
+                total: number;
+            };
+            editable: boolean;
+            emailBounced: boolean;
+            valid: boolean;
+            validationError?: 'TAKEN' | 'IS_DEFINED' | 'IS_INVALID';
+        }>;
+        meta?: {
+            totalElements?: number;
+        };
+    };
+};
+
+export type ListSignatureParticipantsControllerRunResponse = ListSignatureParticipantsControllerRunResponses[keyof ListSignatureParticipantsControllerRunResponses];
+
+export type CreateSignatureParticipantControllerRunData = {
+    body: {
+        id: string;
+        groupId?: string;
+        role: 'SIGNATORY' | 'OBSERVER' | 'VALIDATOR';
+        firstName: string;
+        lastName: string;
+        email: string;
+        linkToAllDocuments?: boolean;
+        sendWaUrl?: boolean;
+        sendSmsUrl?: boolean;
+        phoneNumber?: string;
+        phonePrefix?: string;
+    };
+    path: {
+        caseFileId: string;
+        requestId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/participants';
+};
+
+export type CreateSignatureParticipantControllerRunResponses = {
+    201: unknown;
+};
+
+export type ListSignatureRequestsByCaseFileControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+    };
+    query?: {
+        filter?: {
+            search?: string;
+            status?: 'CREATING' | 'DRAFT' | 'ACTIVE' | 'PARTIALLY_SIGNED' | 'FULLY_SIGNED' | 'CANCELLED' | 'COMPLETED' | 'REJECTED' | 'CLOSING' | 'COMPLETED_MANUAL';
+            statuses?: Array<'CREATING' | 'DRAFT' | 'ACTIVE' | 'PARTIALLY_SIGNED' | 'FULLY_SIGNED' | 'CANCELLED' | 'COMPLETED' | 'REJECTED' | 'CLOSING' | 'COMPLETED_MANUAL'>;
+            createdFrom?: string;
+            createdUntil?: string;
+            id?: string;
+        };
+        order?: {
+            createdAt?: 'ASC' | 'DESC';
+        };
+        page?: {
+            number: number;
+            size: number;
+        };
+    };
+    url: '/case-files/{caseFileId}/signature-requests';
+};
+
+export type ListSignatureRequestsByCaseFileControllerRunResponses = {
+    200: {
+        data?: Array<{
+            /**
+             * @deprecated
+             */
+            caseFileId: string;
+            id: string;
+            code: string;
+            name: string;
+            language: string;
+            status: 'CREATING' | 'DRAFT' | 'ACTIVE' | 'PARTIALLY_SIGNED' | 'FULLY_SIGNED' | 'CANCELLED' | 'COMPLETED' | 'REJECTED' | 'CLOSING' | 'COMPLETED_MANUAL';
+            createdAt: string;
+            activatedAt?: string;
+            completedAt?: string;
+            closeCondition: 'ALL_REQUIRED' | 'PARTIAL_ALLOWED';
+            caseFile: {
+                id: string;
+                useCaseId: string;
+                name: string;
+                code: string;
+            };
+            owner: {
+                id: string;
+                firstName: string;
+                lastName: string;
+                role: string;
+            };
+            createdBy?: {
+                id: string;
+                firstName: string;
+                lastName: string;
+                role: string;
+            };
+        }>;
+        meta?: {
+            totalElements?: number;
+        };
+    };
+};
+
+export type ListSignatureRequestsByCaseFileControllerRunResponse = ListSignatureRequestsByCaseFileControllerRunResponses[keyof ListSignatureRequestsByCaseFileControllerRunResponses];
+
+export type CreateSignatureRequestControllerRunData = {
+    body: {
+        id: string;
+        name: string;
+        language: 'en_GB' | 'es_ES';
+        signatureType?: 'INTERPOSITION' | 'ADVANCED' | 'WITH_CERTIFICATE';
+        dashboardUrl?: 'NONE' | 'ANONYMIZED';
+        sequence?: 'PARALLEL' | 'CONFIGURABLE';
+        deadline: string;
+        objectiveId?: string;
+        closeCondition?: 'ALL_REQUIRED' | 'PARTIAL_ALLOWED';
+    };
+    path: {
+        caseFileId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests';
+};
+
+export type CreateSignatureRequestControllerRunResponses = {
+    201: unknown;
+};
+
+export type DeleteDocumentParticipantControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+        id: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}/participants/{id}';
+};
+
+export type DeleteDocumentParticipantControllerRunResponses = {
+    200: unknown;
+};
+
+export type DeleteInvalidSignatureParticipantsControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/invalid-participants';
+};
+
+export type DeleteInvalidSignatureParticipantsControllerRunResponses = {
+    200: unknown;
+};
+
+export type DeleteSignatoryValidatorControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        signatoryId: string;
+        validatorId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/signatories/{signatoryId}/validators/{validatorId}';
+};
+
+export type DeleteSignatoryValidatorControllerRunResponses = {
+    200: unknown;
+};
+
+export type DeleteSignatureDocumentControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}';
+};
+
+export type DeleteSignatureDocumentControllerRunResponses = {
+    200: unknown;
+};
+
+export type UpdateSignatureDocumentControllerRunData = {
+    body: {
+        groupId?: string;
+    };
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}';
+};
+
+export type UpdateSignatureDocumentControllerRunResponses = {
+    200: unknown;
+};
+
+export type DeleteSignatureGroupControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        groupId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/groups/{groupId}';
+};
+
+export type DeleteSignatureGroupControllerRunResponses = {
+    200: unknown;
+};
+
+export type DeleteSignatureParticipantControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        participantId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/participants/{participantId}';
+};
+
+export type DeleteSignatureParticipantControllerRunResponses = {
+    200: unknown;
+};
+
+export type UpdateSignatureParticipantControllerRunData = {
+    body: {
+        groupId?: string;
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+        phonePrefix?: string;
+        phoneNumber?: string;
+    };
+    path: {
+        caseFileId: string;
+        requestId: string;
+        participantId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/participants/{participantId}';
+};
+
+export type UpdateSignatureParticipantControllerRunResponses = {
+    200: unknown;
+};
+
+export type DeleteSignatureRequestControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}';
+};
+
+export type DeleteSignatureRequestControllerRunResponses = {
+    200: unknown;
+};
+
+export type ShowSignatureRequestControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}';
+};
+
+export type ShowSignatureRequestControllerRunResponses = {
+    200: {
+        /**
+         * @deprecated
+         */
+        caseFileId: string;
+        id: string;
+        code: string;
+        name: string;
+        language: string;
+        status: 'CREATING' | 'DRAFT' | 'ACTIVE' | 'PARTIALLY_SIGNED' | 'FULLY_SIGNED' | 'CANCELLED' | 'COMPLETED' | 'REJECTED' | 'CLOSING' | 'COMPLETED_MANUAL';
+        createdAt: string;
+        signatureType: 'INTERPOSITION' | 'ADVANCED' | 'WITH_CERTIFICATE';
+        dashboardUrl: 'NONE' | 'ANONYMIZED';
+        sequence: 'PARALLEL' | 'CONFIGURABLE';
+        activatedAt?: string;
+        completedAt?: string;
+        objectiveId?: string;
+        deadline: string;
+        closeCondition: 'ALL_REQUIRED' | 'PARTIAL_ALLOWED';
+        signatoryStats: {
+            total: number;
+            bounced: number;
+            valid: number;
+        };
+        observerStats: {
+            total: number;
+            bounced: number;
+            valid: number;
+        };
+        validatorStats: {
+            total: number;
+            bounced: number;
+            assignedToSignatories: number;
+            assignedToDocuments: number;
+            valid: number;
+        };
+        caseFile: {
+            id: string;
+            useCaseId: string;
+            name: string;
+            code: string;
+            ownerId: string;
+        };
+        owner: {
+            id: string;
+            firstName: string;
+            lastName: string;
+            role: string;
+        };
+        createdBy?: {
+            id: string;
+            firstName: string;
+            lastName: string;
+            role: string;
+        };
+    };
+};
+
+export type ShowSignatureRequestControllerRunResponse = ShowSignatureRequestControllerRunResponses[keyof ShowSignatureRequestControllerRunResponses];
+
+export type UpdateSignatureRequestControllerRunData = {
+    body: {
+        name?: string;
+        language?: 'en_GB' | 'es_ES';
+        deadline?: string;
+        dashboardUrl?: 'NONE' | 'ANONYMIZED';
+        objectiveId?: string;
+    };
+    path: {
+        caseFileId: string;
+        requestId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}';
+};
+
+export type UpdateSignatureRequestControllerRunResponses = {
+    200: unknown;
+};
+
+export type DraftSignatureRequestControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/draft';
+};
+
+export type DraftSignatureRequestControllerRunResponses = {
+    200: unknown;
+};
+
+export type DuplicateSignatureRequestControllerRunData = {
+    body: {
+        caseFileId?: string;
+        id: string;
+        name: string;
+        deadline: string;
+    };
+    path: {
+        caseFileId: string;
+        requestId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/duplicate';
+};
+
+export type DuplicateSignatureRequestControllerRunResponses = {
+    201: unknown;
+};
+
+export type ListSignatoryValidatorsFromDocumentControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+        signatoryId: string;
+    };
+    query?: {
+        page?: {
+            number: number;
+            size: number;
+        };
+    };
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}/signatories/{signatoryId}/validators';
+};
+
+export type ListSignatoryValidatorsFromDocumentControllerRunResponses = {
+    200: {
+        data?: Array<{
+            id: string;
+            email: string;
+            firstName: string;
+            lastName: string;
+            status: 'PENDING' | 'READY_TO_VALIDATE' | 'VALIDATED' | 'REJECTED';
+        }>;
+        meta?: {
+            totalElements?: number;
+        };
+    };
+};
+
+export type ListSignatoryValidatorsFromDocumentControllerRunResponse = ListSignatoryValidatorsFromDocumentControllerRunResponses[keyof ListSignatoryValidatorsFromDocumentControllerRunResponses];
+
+export type LinkSignatoryValidatorsToDocumentControllerRunData = {
+    body: {
+        validatorIds: Array<string>;
+    };
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+        signatoryId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}/signatories/{signatoryId}/validators';
+};
+
+export type LinkSignatoryValidatorsToDocumentControllerRunResponses = {
+    201: unknown;
+};
+
+export type ListDocumentObserversControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+    };
+    query?: {
+        page?: {
+            number: number;
+            size: number;
+        };
+    };
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}/observers';
+};
+
+export type ListDocumentObserversControllerRunResponses = {
+    200: {
+        data?: Array<{
+            id: string;
+            email: string;
+            firstName: string;
+            lastName: string;
+        }>;
+        meta?: {
+            totalElements?: number;
+        };
+    };
+};
+
+export type ListDocumentObserversControllerRunResponse = ListDocumentObserversControllerRunResponses[keyof ListDocumentObserversControllerRunResponses];
+
+export type ListDocumentSignatoriesControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+    };
+    query?: {
+        page?: {
+            number: number;
+            size: number;
+        };
+    };
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}/signatories';
+};
+
+export type ListDocumentSignatoriesControllerRunResponses = {
+    200: {
+        data?: Array<{
+            id: string;
+            groupId?: string;
+            email: string;
+            firstName: string;
+            lastName: string;
+            status: 'PENDING' | 'READY_TO_SIGN' | 'VALIDATING' | 'SIGNED' | 'REJECTED';
+            coordinates: Array<{
+                page: number;
+                x: number;
+                y: number;
+            }>;
+            uniqueValidator: boolean;
+            sendWaUrl: boolean;
+            sendSmsUrl: boolean;
+            phoneNumber?: string;
+            phonePrefix?: string;
+            participantStats: {
+                validators: number;
+            };
+        }>;
+        meta?: {
+            totalElements?: number;
+        };
+    };
+};
+
+export type ListDocumentSignatoriesControllerRunResponse = ListDocumentSignatoriesControllerRunResponses[keyof ListDocumentSignatoriesControllerRunResponses];
+
+export type ListSignatoryDocumentsControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        signatoryId: string;
+    };
+    query?: {
+        filter?: {
+            id?: string;
+        };
+        order?: {
+            createdAt?: 'ASC' | 'DESC';
+        };
+        page?: {
+            number: number;
+            size: number;
+        };
+    };
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/signatories/{signatoryId}/documents';
+};
+
+export type ListSignatoryDocumentsControllerRunResponses = {
+    200: {
+        data?: Array<{
+            id: string;
+            fileName: string;
+            fileSize?: number;
+            status: 'PENDING' | 'READY_TO_SIGN' | 'SIGNED' | 'REJECTED';
+        }>;
+        meta?: {
+            totalElements?: number;
+        };
+    };
+};
+
+export type ListSignatoryDocumentsControllerRunResponse = ListSignatoryDocumentsControllerRunResponses[keyof ListSignatoryDocumentsControllerRunResponses];
+
+export type ListSignatoryValidatorsFromDocumentWithLinkedFlagControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+        signatoryId: string;
+    };
+    query?: {
+        filter?: {
+            search?: string;
+        };
+        page?: {
+            number: number;
+            size: number;
+        };
+    };
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}/signatories/{signatoryId}/validators-with-linked-flag';
+};
+
+export type ListSignatoryValidatorsFromDocumentWithLinkedFlagControllerRunResponses = {
+    200: {
+        data?: Array<{
+            id: string;
+            requestId: string;
+            documentId: string;
+            signatoryId: string;
+            firstName: string;
+            lastName: string;
+            email: string;
+            isLinked: boolean;
+        }>;
+        meta?: {
+            totalElements?: number;
+        };
+    };
+};
+
+export type ListSignatoryValidatorsFromDocumentWithLinkedFlagControllerRunResponse = ListSignatoryValidatorsFromDocumentWithLinkedFlagControllerRunResponses[keyof ListSignatoryValidatorsFromDocumentWithLinkedFlagControllerRunResponses];
+
+export type ListSignatoryValidatorsWithLinkedFlagControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        signatoryId: string;
+    };
+    query?: {
+        filter?: {
+            search?: string;
+        };
+        page?: {
+            number: number;
+            size: number;
+        };
+    };
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/signatories/{signatoryId}/validators-with-linked-flag';
+};
+
+export type ListSignatoryValidatorsWithLinkedFlagControllerRunResponses = {
+    200: {
+        data?: Array<{
+            id: string;
+            requestId: string;
+            firstName: string;
+            lastName: string;
+            email: string;
+            isLinked: boolean;
+        }>;
+        meta?: {
+            totalElements?: number;
+        };
+    };
+};
+
+export type ListSignatoryValidatorsWithLinkedFlagControllerRunResponse = ListSignatoryValidatorsWithLinkedFlagControllerRunResponses[keyof ListSignatoryValidatorsWithLinkedFlagControllerRunResponses];
+
+export type ListSignatureParticipantsWithLinkedFlagControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+    };
+    query?: {
+        filter?: {
+            role?: 'SIGNATORY' | 'OBSERVER' | 'VALIDATOR';
+            search?: string;
+        };
+        page?: {
+            number: number;
+            size: number;
+        };
+    };
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}/participants-with-linked-flag';
+};
+
+export type ListSignatureParticipantsWithLinkedFlagControllerRunResponses = {
+    200: {
+        data?: Array<{
+            id: string;
+            requestId: string;
+            role: 'SIGNATORY' | 'OBSERVER' | 'VALIDATOR';
+            firstName: string;
+            lastName: string;
+            email: string;
+            createdAt: string;
+            isLinked: boolean;
+        }>;
+        meta?: {
+            totalElements?: number;
+        };
+    };
+};
+
+export type ListSignatureParticipantsWithLinkedFlagControllerRunResponse = ListSignatureParticipantsWithLinkedFlagControllerRunResponses[keyof ListSignatureParticipantsWithLinkedFlagControllerRunResponses];
+
+export type ListSignatureRequestsByUserControllerRunData = {
+    body?: never;
+    path: {
+        userId: string;
+    };
+    query?: {
+        filter?: {
+            search?: string;
+            status?: 'CREATING' | 'DRAFT' | 'ACTIVE' | 'PARTIALLY_SIGNED' | 'FULLY_SIGNED' | 'CANCELLED' | 'COMPLETED' | 'REJECTED' | 'CLOSING' | 'COMPLETED_MANUAL';
+            statuses?: Array<'CREATING' | 'DRAFT' | 'ACTIVE' | 'PARTIALLY_SIGNED' | 'FULLY_SIGNED' | 'CANCELLED' | 'COMPLETED' | 'REJECTED' | 'CLOSING' | 'COMPLETED_MANUAL'>;
+            createdFrom?: string;
+            createdUntil?: string;
+            id?: string;
+            caseFileIds?: Array<string>;
+        };
+        order?: {
+            createdAt?: 'ASC' | 'DESC';
+        };
+        page?: {
+            number: number;
+            size: number;
+        };
+    };
+    url: '/users/{userId}/signature-requests';
+};
+
+export type ListSignatureRequestsByUserControllerRunResponses = {
+    200: {
+        data?: Array<{
+            /**
+             * @deprecated
+             */
+            caseFileId: string;
+            id: string;
+            code: string;
+            name: string;
+            language: string;
+            status: 'CREATING' | 'DRAFT' | 'ACTIVE' | 'PARTIALLY_SIGNED' | 'FULLY_SIGNED' | 'CANCELLED' | 'COMPLETED' | 'REJECTED' | 'CLOSING' | 'COMPLETED_MANUAL';
+            createdAt: string;
+            activatedAt?: string;
+            completedAt?: string;
+            closeCondition: 'ALL_REQUIRED' | 'PARTIAL_ALLOWED';
+            caseFile: {
+                id: string;
+                useCaseId: string;
+                name: string;
+                code: string;
+            };
+            owner: {
+                id: string;
+                firstName: string;
+                lastName: string;
+                role: string;
+            };
+            createdBy?: {
+                id: string;
+                firstName: string;
+                lastName: string;
+                role: string;
+            };
+        }>;
+        meta?: {
+            totalElements?: number;
+        };
+    };
+};
+
+export type ListSignatureRequestsByUserControllerRunResponse = ListSignatureRequestsByUserControllerRunResponses[keyof ListSignatureRequestsByUserControllerRunResponses];
+
+export type ProcessSignatureDocumentObserversCallbackControllerRunData = {
+    body: {
+        operationType: string;
+        data: {
+            signatureRequestId: string;
+            email: string;
+            notification: {
+                status: 'BOUNCED';
+            };
+        };
+    };
+    path?: never;
+    query?: never;
+    url: '/signature-document-observers/callback';
+};
+
+export type ProcessSignatureDocumentObserversCallbackControllerRunResponses = {
+    204: void;
+};
+
+export type ProcessSignatureDocumentObserversCallbackControllerRunResponse = ProcessSignatureDocumentObserversCallbackControllerRunResponses[keyof ProcessSignatureDocumentObserversCallbackControllerRunResponses];
+
+export type ProcessSignatureDocumentSignatoriesCallbackControllerRunData = {
+    body: {
+        operationType: string;
+        data: {
+            signatureRequestId: string;
+            email: string;
+            notification: {
+                status: 'BOUNCED';
+            };
+        };
+    };
+    path?: never;
+    query?: never;
+    url: '/signature-document-signatories/callback';
+};
+
+export type ProcessSignatureDocumentSignatoriesCallbackControllerRunResponses = {
+    204: void;
+};
+
+export type ProcessSignatureDocumentSignatoriesCallbackControllerRunResponse = ProcessSignatureDocumentSignatoriesCallbackControllerRunResponses[keyof ProcessSignatureDocumentSignatoriesCallbackControllerRunResponses];
+
+export type ProcessSignatureDocumentValidatorsCallbackControllerRunData = {
+    body: {
+        operationType: string;
+        data: {
+            signatureRequestId: string;
+            email: string;
+            notification: {
+                status: 'BOUNCED';
+            };
+        };
+    };
+    path?: never;
+    query?: never;
+    url: '/signature-document-validators/callback';
+};
+
+export type ProcessSignatureDocumentValidatorsCallbackControllerRunResponses = {
+    204: void;
+};
+
+export type ProcessSignatureDocumentValidatorsCallbackControllerRunResponse = ProcessSignatureDocumentValidatorsCallbackControllerRunResponses[keyof ProcessSignatureDocumentValidatorsCallbackControllerRunResponses];
+
+export type ProcessSignatureDocumentsCallbackControllerRunData = {
+    body: {
+        operationType: string;
+        data: {
+            signatureRequestId: string;
+            documentId: string;
+            status: string;
+        };
+    };
+    path?: never;
+    query?: never;
+    url: '/signature-documents/callback';
+};
+
+export type ProcessSignatureDocumentsCallbackControllerRunResponses = {
+    204: void;
+};
+
+export type ProcessSignatureDocumentsCallbackControllerRunResponse = ProcessSignatureDocumentsCallbackControllerRunResponses[keyof ProcessSignatureDocumentsCallbackControllerRunResponses];
+
+export type ProcessSignatureRequestsCallbackControllerRunData = {
+    body: {
+        operationType: string;
+        data: {
+            signatureRequestId: string;
+            status: string;
+        };
+    };
+    path?: never;
+    query?: never;
+    url: '/signature-requests/callback';
+};
+
+export type ProcessSignatureRequestsCallbackControllerRunResponses = {
+    204: void;
+};
+
+export type ProcessSignatureRequestsCallbackControllerRunResponse = ProcessSignatureRequestsCallbackControllerRunResponses[keyof ProcessSignatureRequestsCallbackControllerRunResponses];
+
+export type ResendSignatureRequestControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/resend';
+};
+
+export type ResendSignatureRequestControllerRunResponses = {
+    200: unknown;
+};
+
+export type ShowSignatureDocumentConvertedDownloadUrlControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}/converted-download-url';
+};
+
+export type ShowSignatureDocumentConvertedDownloadUrlControllerRunResponses = {
+    200: {
+        convertedDownloadUrl: string;
+    };
+};
+
+export type ShowSignatureDocumentConvertedDownloadUrlControllerRunResponse = ShowSignatureDocumentConvertedDownloadUrlControllerRunResponses[keyof ShowSignatureDocumentConvertedDownloadUrlControllerRunResponses];
+
+export type ShowSignatureDocumentDownloadUrlControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}/download-url';
+};
+
+export type ShowSignatureDocumentDownloadUrlControllerRunResponses = {
+    200: {
+        downloadUrl: string;
+    };
+};
+
+export type ShowSignatureDocumentDownloadUrlControllerRunResponse = ShowSignatureDocumentDownloadUrlControllerRunResponses[keyof ShowSignatureDocumentDownloadUrlControllerRunResponses];
+
+export type UnlinkSignatoryValidatorFromDocumentControllerRunData = {
+    body?: never;
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+        signatoryId: string;
+        validatorId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}/signatories/{signatoryId}/validators/{validatorId}';
+};
+
+export type UnlinkSignatoryValidatorFromDocumentControllerRunResponses = {
+    200: unknown;
+};
+
+export type UpdateDocumentSignatoryControllerRunData = {
+    body: {
+        groupId?: string;
+        uniqueValidator?: boolean;
+    };
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+        signatoryId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}/signatories/{signatoryId}';
+};
+
+export type UpdateDocumentSignatoryControllerRunResponses = {
+    200: unknown;
+};
+
+export type UpdateSignatureCoordinatesControllerRunData = {
+    body: {
+        coordinates: Array<{
+            page: number;
+            x: number;
+            y: number;
+        }>;
+    };
+    path: {
+        caseFileId: string;
+        requestId: string;
+        documentId: string;
+        signatoryId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/documents/{documentId}/signatories/{signatoryId}/coordinates';
+};
+
+export type UpdateSignatureCoordinatesControllerRunResponses = {
+    200: unknown;
+};
+
+export type UpdateSignatureRequestCaseFileIdControllerRunData = {
+    body: {
+        caseFileId: string;
+    };
+    path: {
+        caseFileId: string;
+        requestId: string;
+    };
+    query?: never;
+    url: '/case-files/{caseFileId}/signature-requests/{requestId}/case-file-id';
+};
+
+export type UpdateSignatureRequestCaseFileIdControllerRunResponses = {
+    200: unknown;
+};
+
 export type ListUsersControllerRunData = {
     body?: never;
     path: {
@@ -3468,9 +5021,10 @@ export type ShowProfileControllerRunResponses = {
         lastName: string;
         confirmedAt?: string;
         companyId: string;
+        companyName?: string;
         companyVerified: boolean;
         companyCorporate: boolean;
-        companyName?: string;
+        companyExternalIdentity: boolean;
         defaultCaseFileId?: string;
         language: string;
         onboardingShown: boolean;

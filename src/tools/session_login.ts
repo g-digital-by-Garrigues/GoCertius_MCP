@@ -24,11 +24,11 @@ const BASE_URL = process.env.MCP_API_BASE_URL ?? "https://api-gocertius.gocertiu
 export const session_login = defineTool({
   name: "session_login",
   description:
-    "Force the GoCertius MCP server to re-authenticate. Takes no parameters and accepts no " +
-    "credentials: the server re-exchanges the user key it was configured with " +
-    "(MCP_AUTH_USER_KEY) for a fresh session token, and this tool reports the resulting " +
-    "userId and expiry. The server manages authentication automatically — call this only " +
-    "to force a re-login or after a 401.",
+    "Forces this MCP server to re-authenticate: it re-exchanges its configured user key " +
+    "(MCP_AUTH_USER_KEY) for a fresh session token and reports the userId and expiry. Takes no " +
+    "parameters or credentials. Auth is automatic: call this only to force a re-login or after a " +
+    "401, never in a loop. If the server holds no credential of its own (none configured, or you " +
+    "sent your own Bearer token) it returns an error naming MCP_AUTH_USER_KEY.",
   inputSchema: z.object({}),
   annotations: {
     title: "Session Login",

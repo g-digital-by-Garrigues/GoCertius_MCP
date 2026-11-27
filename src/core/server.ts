@@ -21,6 +21,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ZodRawShape } from "zod";
 import { z } from "zod";
 import { AuthConfigError, detectAuthAdapter } from "./auth/detect.js";
+import { HumanActionRequiredError } from "./auth/errors.js";
 import { createBearerIntrospector } from "./auth/introspect.js";
 import { executeWithAuthRetry } from "./auth/retry.js";
 import type { AuthSession } from "./auth/session.js";
@@ -382,7 +383,10 @@ export function registerSyncTool(
           return buildToolError({
             operation: tool.name,
             upstream: err,
-            remediation: "Check MCP_AUTH_* credentials in your server config.",
+            remediation:
+              err instanceof HumanActionRequiredError
+                ? err.remediation
+                : "Check MCP_AUTH_* credentials in your server config.",
           });
         }
       }
@@ -424,6 +428,13 @@ export function registerSyncTool(
       } catch (err) {
         if (isMcpError(err)) return err as ReturnType<typeof buildMcpResult>;
         if (err instanceof FileIngestionError) return err.toMcpError();
+        if (err instanceof HumanActionRequiredError) {
+          return buildToolError({
+            operation: tool.name,
+            upstream: err,
+            remediation: err.remediation,
+          });
+        }
         log.error({ tool: tool.name, err }, "Tool execution error");
         return mapUpstreamError(err, { operation: tool.name });
       }
@@ -473,7 +484,13 @@ export function registerPollableTool(
         if (httpCtx?.jwt) {
           auth = { token: httpCtx.jwt, expiresAt: Number.POSITIVE_INFINITY };
         } else if (authSession && !tool.operatesOnServerSession) {
-          const token = await authSession.getToken();
+          const token = await authSession.getToken().catch((err: unknown) => {
+            // The agent must learn that a person has to act, not just that auth failed.
+            if (err instanceof HumanActionRequiredError) {
+              throw new Error(`${err.message} ${err.remediation}`);
+            }
+            throw err;
+          });
           auth = { token, expiresAt: Date.now() + 3600_000 };
         }
 

@@ -29,14 +29,13 @@ notification_send_with_attachments
   recipients=[ { firstName: "Alice", lastName: "Smith", email: "alice@example.com" } ]
 ```
 
-Each attachment's `file` accepts four sources:
+Each attachment's `file` accepts three sources:
 
 | `source` | Fields | Use when |
 |---|---|---|
 | `path` | `path` | the file is on the server's own machine (stdio/local mode only) |
 | `base64` | `filename`, `contentBase64` | you already hold the bytes |
 | `url` | `url` | the file is at an HTTPS URL (fetched with SSRF protection) |
-| `n8n-binary` | `binaryRef` | the file came from a previous node in an n8n workflow |
 
 The hash, the presigned upload and the `READY_TO_SEND` wait are handled internally.
 

@@ -15,7 +15,7 @@ const inputSchema = rawInputSchema;
 
 export const notification_request_status = defineTool({
   name: "notification_request_status",
-  description: "Checks the delivery status of a certified notification. Requires: notificationRequestId, caseFileId. Returns status (CREATING|DRAFT|IN_PROCESS|SENT|PARTIALLY_READ|FULLY_READ|PARTIALLY_ANSWERED|FULLY_ANSWERED). Poll until status is SENT or beyond. Do not call notification_certificate_get while status is CREATING, DRAFT, or IN_PROCESS.",
+  description: "Checks the delivery status of a certified notification. Requires: notificationRequestId, caseFileId. Returns status (CREATING, DRAFT, IN_PROCESS, SENT, PARTIALLY_READ, FULLY_READ, PARTIALLY_ANSWERED, FULLY_ANSWERED). Poll until status is SENT or beyond. Do not call notification_certificate_get while status is CREATING, DRAFT, or IN_PROCESS.",
   inputSchema,
   annotations: {
     title: "Notification Request Status",
@@ -25,7 +25,7 @@ export const notification_request_status = defineTool({
     openWorldHint: false,
   },
   pollable: false,
-  idempotencyWindowSeconds: 60,
+  idempotencyWindowSeconds: 0,
   async execute(input, ctx) {
     const token = ctx.auth?.token ?? "";
     const sdkClient = createClient(

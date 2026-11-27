@@ -17,7 +17,7 @@ const inputSchema = rawInputSchema;
 
 export const dossier_evidence_list_to_link = defineTool({
   name: "dossier_evidence_list_to_link",
-  description: "Lists evidence items that are available to be linked to a dossier (CLOSED groups not yet linked). Requires: caseFileId and dossierId.",
+  description: "Lists the evidences that can be linked to a dossier: COMPLETED evidences of the case file (capture-metadata records excluded), whatever their group's status; already-linked ones come back flagged as linked. Requires: caseFileId and dossierId.",
   inputSchema,
   annotations: {
     title: "Dossier Evidence List To Link",
@@ -27,7 +27,7 @@ export const dossier_evidence_list_to_link = defineTool({
     openWorldHint: false,
   },
   pollable: false,
-  idempotencyWindowSeconds: 60,
+  idempotencyWindowSeconds: 0,
   async execute(input, ctx) {
     const token = ctx.auth?.token ?? "";
     const sdkClient = createClient(

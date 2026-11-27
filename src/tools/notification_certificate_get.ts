@@ -15,22 +15,29 @@ import {
   zCreateNotificationCertificateControllerRunBody,
   zCreateNotificationCertificateControllerRunPath,
 } from "../api/zod.gen.js";
-import { defineTool } from "../core/index.js";
+import { defineTool, toolError } from "../core/index.js";
 
 const inputSchema = z.object({
   ...zCreateNotificationCertificateControllerRunPath.shape,
   ...zCreateNotificationCertificateControllerRunBody.shape,
+  embeddedDocuments:
+    zCreateNotificationCertificateControllerRunBody.shape.embeddedDocuments.describe(
+      "true embeds the notification's documents in the certificate (409 if the notification has none). " +
+        "Fixed when the certificate is created: to change it, use a new id.",
+    ),
 });
 
 export const notification_certificate_get = defineTool({
   name: "notification_certificate_get",
   description:
-    "Creates or retrieves a PDF certificate for a specific notification receiver. " +
-    "Requires notification_request_send and notification_receiver_add. Generate a UUID v4 for `id` " +
-    "the first time and reuse that id when polling. This tool is idempotent: it first lists existing " +
-    "certificates for the receiver and, if `id` already exists, returns it instead of creating it again. " +
-    "If the certificate status is CERTIFIED, the response includes documentUrl when available. " +
-    "If it is CERTIFYING, poll this same tool with the same id.",
+    "Creates or retrieves the delivery certificate for ONE receiver. Requires: " +
+    "notification_request_send, notification_receiver_add → receiverId, notificationRequestId, " +
+    "caseFileId. 403 while the notification is DRAFT or that receiver is still READY_TO_SEND " +
+    "(see notification_receiver_list). Generate a UUID v4 for `id` once and reuse it when " +
+    "polling: the tool returns the existing certificate with that id instead of creating a " +
+    "duplicate. CERTIFYING → CERTIFIED; poll until CERTIFIED, when documentUrl is included. " +
+    "partial: true means it was issued before the receiver READ (NO_RESPONSE type) or ANSWERED " +
+    "(other types); for the final one, call again with a new id once it has.",
   inputSchema,
   annotations: {
     title: "Notification Certificate Get",
@@ -40,15 +47,20 @@ export const notification_certificate_get = defineTool({
     openWorldHint: false,
   },
   pollable: false,
-  idempotencyWindowSeconds: 60,
+  // E22 22-16 review: 0, not 60. Agents poll this tool with the SAME arguments until CERTIFIED; a 60 s
+  // result cache answered every poll with the first CERTIFYING result. The tool is idempotent by itself
+  // (it looks the id up before creating), so the cache added nothing but stale answers.
+  idempotencyWindowSeconds: 0,
   async execute(input, ctx) {
-    const { caseFileId, notificationRequestId, receiverId, id, language } = input as {
-      caseFileId: string;
-      notificationRequestId: string;
-      receiverId: string;
-      id: string;
-      language?: "en_GB" | "es_ES";
-    };
+    const { caseFileId, notificationRequestId, receiverId, id, language, embeddedDocuments } =
+      input as {
+        caseFileId: string;
+        notificationRequestId: string;
+        receiverId: string;
+        id: string;
+        language?: "en_GB" | "es_ES";
+        embeddedDocuments?: boolean;
+      };
     const token = ctx.auth?.token ?? "";
     const sdkClient = createClient(
       createConfig({
@@ -62,12 +74,42 @@ export const notification_certificate_get = defineTool({
 
     const path = { caseFileId, notificationRequestId, receiverId };
     const existing = await findCertificate(sdkClient, path, id);
-    if (existing) return await withDocumentUrl(sdkClient, path, existing, id);
+    if (existing) {
+      // E22 22-16 review: an existing id returns that certificate as it was created. Asking for other
+      // options under the same id used to return it unchanged, with no error.
+      const differs = [
+        embeddedDocuments !== undefined &&
+          typeof existing.embeddedDocuments === "boolean" &&
+          existing.embeddedDocuments !== embeddedDocuments &&
+          `embeddedDocuments=${String(existing.embeddedDocuments)}`,
+        language !== undefined &&
+          typeof existing.language === "string" &&
+          existing.language !== language &&
+          `language=${existing.language}`,
+      ].filter(Boolean);
+      if (differs.length > 0) {
+        throw toolError({
+          operation: "notification_certificate_get",
+          upstream: new Error(
+            `certificate ${id} already exists with ${differs.join(" and ")}; this id always returns it as it was created`,
+          ),
+          remediation:
+            "Call again with a NEW id to create a certificate with the options you want, or with the same id and the same options to poll this one.",
+        });
+      }
+      return await withDocumentUrl(sdkClient, path, existing, id);
+    }
 
     const created = await createNotificationCertificateControllerRun({
       client: sdkClient,
       path,
-      body: { id, language } as any,
+      // E22 22-16: embeddedDocuments was accepted but never sent, so a certificate asked for with the
+      // notification's documents embedded came back without them, and no error.
+      body: {
+        id,
+        language,
+        ...(embeddedDocuments === undefined ? {} : { embeddedDocuments }),
+      } as any,
     });
     if (created.error !== undefined) {
       const afterError = await findCertificate(sdkClient, path, id);
@@ -86,16 +128,23 @@ async function findCertificate(
   path: { caseFileId: string; notificationRequestId: string; receiverId: string },
   id: string,
 ) {
-  const response = await listNotificationCertificatesControllerRun({
-    client: client as any,
-    path,
-    query: { page: { number: 1, size: 50 } } as any,
-  });
-  if (response.error !== undefined) throw new Error(errorMessage(response.error));
-  const data = (response.data as { data?: Array<Record<string, unknown>> } | undefined)?.data ?? [];
-  // Prefer exact id match. Also accept stubs with no id (generating state) to prevent
-  // duplicate POST calls when the backend hasn't yet populated the id field.
-  return data.find((cert) => !cert.id || cert.id === id);
+  // E22 22-16 review: every page, not only the first 50 certificates — a receiver can have more, and a
+  // missed id made the tool POST a duplicate. Exact id match only: the caller mints the id, and every
+  // listed certificate carries one (the spec makes `id` required), so an id-less item is never ours.
+  const PAGE = 100;
+  for (let number = 1; number <= 50; number++) {
+    const response = await listNotificationCertificatesControllerRun({
+      client: client as any,
+      path,
+      query: { page: { number, size: PAGE } } as any,
+    });
+    if (response.error !== undefined) throw new Error(errorMessage(response.error));
+    const data =
+      (response.data as { data?: Array<Record<string, unknown>> } | undefined)?.data ?? [];
+    const found = data.find((cert) => cert.id === id);
+    if (found || data.length < PAGE) return found;
+  }
+  return undefined;
 }
 
 async function withDocumentUrl(

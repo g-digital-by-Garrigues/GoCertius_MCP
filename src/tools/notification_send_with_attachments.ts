@@ -100,7 +100,7 @@ const inputSchema = z.object({
     .array(attachmentSchema)
     .min(1)
     .describe(
-      "One or more documents to attach. Each takes a local path, base64 content, an HTTPS URL or an n8n binary reference. The maximum is a per-subscription setting that varies by tenant and platform, so no limit is enforced here. With no attachments, use notification_send instead.",
+      "One or more documents to attach. Each takes a local path, base64 content or an HTTPS URL. The maximum is a per-subscription setting that varies by tenant and platform, so no limit is enforced here. With no attachments, use notification_send instead.",
     ),
   recipients: z
     .array(recipientSchema)
@@ -162,13 +162,14 @@ export const notification_send_with_attachments = defineTool({
   description:
     "Sends a certified notification WITH one or more attached documents to one or more recipients, in a single call. " +
     "Use notification_send instead when there are no attachments. " +
-    "This tool exists separately because attachments impose an ordering rule the API enforces and does not forgive: documents must be registered and fully uploaded BEFORE any recipient is added, and every document must reach READY_TO_SEND before the notification is sent — otherwise the send fails with 409/404 NOTIFICATION_NOT_FOUND. The tool performs that whole sequence for you: create → register and upload each document → wait for READY_TO_SEND → add recipients → send. " +
-    "Each attachment takes a local file path, base64 content, an HTTPS URL, or an n8n binary reference; the hash and the upload are handled internally. " +
+    "It runs the order the API requires: create → register and upload each document → wait until every document is READY_TO_SEND → add recipients → send; any other order makes the send fail (409/404 NOTIFICATION_NOT_FOUND). " +
+    "Each attachment takes a local file path, base64 content or an HTTPS URL; the hash and the upload are handled internally. " +
     "Generates every UUID itself — do not pass any id. Requires case_file_create → caseFileId. " +
     "`content` MUST be HTML: plain text is accepted by the API and reports SENT but does not render on the recipient's landing page. Supported tags only: <p>, <strong>, <em>, <ul><li>, <ol><li>. Keep `subject` to plain ASCII, 100 characters maximum. " +
     "Delivery is always by email; per recipient you can additionally set sendWaUrl (WhatsApp), sendSmsUrl (RCS or SMS depending on the handset) and otpRequired (one-time code), each of which needs phonePrefix with the + and phoneNumber. " +
     "The maximum number of attachments and of recipients are per-subscription settings, not fixed limits, so neither is enforced here. " +
-    "IF AN ATTACHMENT FAILS THE RUN STOPS BEFORE RECIPIENTS ARE ADDED, on purpose: once recipients exist the API will not accept further documents, so continuing would produce a notification that can never carry the missing file. The result reports the draft's notificationRequestId so you can retry or delete it. An INVALID recipient blocks the send, so the tool checks for one before sending and reports invalidRecipients instead of attempting a doomed send. If the initial create fails the tool raises an error instead: common causes are a caseFileId that does not exist, a subject over 100 characters, and an exhausted contracted notification plan, which no retry will fix. If that error is a timeout rather than a rejection, check notification_request_list before retrying — the request may have been created anyway. " +
+    "If an attachment fails, the run stops before adding recipients, because the API accepts no more documents once recipients exist, and reports the draft's notificationRequestId so you can retry or delete it. " +
+    "An INVALID recipient blocks the send, so the tool checks for one before sending and reports invalidRecipients instead. If the initial create fails the tool raises an error: common causes are a caseFileId that does not exist, a subject over 100 characters, and an exhausted notification plan, which no retry will fix. If that error is a timeout rather than a rejection, check notification_request_list before retrying — the request may have been created anyway. " +
     "Certificates can bundle the attachments — see notification_certificate_package_url.",
   inputSchema,
   annotations: {
@@ -203,12 +204,13 @@ export const notification_send_with_attachments = defineTool({
       });
     }
 
-    // No default host: this file is duplicated per product and a copied literal would point one
-    // product's traffic at another's API. The server refuses to start without MCP_API_BASE_URL.
+    // Story 20-09: falls back to this product's declared apiBaseUrl, exactly like
+    // every spec-derived tool's compiled-in default — MCP_API_BASE_URL still wins
+    // when set, so a deployment targeting another environment is unaffected.
     const token = ctx.auth?.token ?? "";
     const sdkClient = createClient(
       createConfig({
-        baseUrl: process.env.MCP_API_BASE_URL ?? "",
+        baseUrl: process.env.MCP_API_BASE_URL ?? "https://api-gocertius.gocertius.io",
         headers: {
           Authorization: `Bearer ${token}`,
           ...(ctx.correlationId ? { "X-Correlation-Id": ctx.correlationId } : {}),

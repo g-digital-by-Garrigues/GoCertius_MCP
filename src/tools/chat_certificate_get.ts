@@ -14,10 +14,11 @@ import { defineTool } from "../core/index.js";
 export const chat_certificate_get = defineTool({
   name: "chat_certificate_get",
   description:
-    "Retrieves a certified chat certificate including its status, message range, and PDF download URL. " +
-    "Prerequisites: the certificate must have been created with chat_certificate_create. " +
-    "Returns documentUrl when status is CERTIFIED. " +
-    "Example: chat_certificate_get({ caseFileId: '...', chatId: '...', id: '...' })",
+    "Retrieves a chat certificate: status, code, name, the certified message range " +
+    "(chatMessagesFrom/To), validity dates and certifiedAt. Requires: chat_certificate_create → " +
+    "id, chatId and the chat's caseFileId. CERTIFYING → CERTIFIED, or back to DRAFT if " +
+    "certification fails (then create a new one with chat_certificate_create); poll this tool " +
+    "until CERTIFIED or DRAFT. When CERTIFIED the response also carries documentUrl.",
   inputSchema: z.object({
     caseFileId: z.string().describe("UUID of the case file that owns the chat"),
     chatId: z.string().describe("UUID of the chat"),
@@ -31,7 +32,9 @@ export const chat_certificate_get = defineTool({
     openWorldHint: false,
   },
   pollable: false,
-  idempotencyWindowSeconds: 30,
+  // E22 22-16 review: 0, not 30 — agents poll this tool with the same arguments; a cached answer
+  // repeated the first CERTIFYING status for 30 s.
+  idempotencyWindowSeconds: 0,
   async execute(input, ctx) {
     const { caseFileId, chatId, id } = input as { caseFileId: string; chatId: string; id: string };
     const token = ctx.auth?.token ?? "";

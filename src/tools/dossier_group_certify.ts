@@ -17,7 +17,7 @@ const inputSchema = rawInputSchema;
 
 export const dossier_group_certify = defineTool({
   name: "dossier_group_certify",
-  description: "Creates AND certifies a dossier from a single sealed evidence group in one call (express path). Requires: evidence_seal (CLOSED status), case_file_create → caseFileId, evidence_group_create → evidenceGroupId. Generate a UUID v4 string for `id`. Use when you have exactly one sealed evidence group and don't need multi-group aggregation. Returns dossierId immediately with CERTIFYING status → poll until CERTIFIED.",
+  description: "Creates AND certifies a dossier from ONE evidence group in one call (express path). Requires: case_file_create → caseFileId, evidence_group_create → evidenceGroupId. Generate a UUID v4 for `id`: the API returns no body, so that `id` IS the dossierId. Without evidenceIds it certifies the group's relevant evidences: evidences are created relevant, so all of them unless evidence_update set relevant=false. Only COMPLETED evidences are certified: any other (still processing, or an id not in the group) is left out without an error, and it answers 409 only if none remains, so wait until every evidence is COMPLETED. The API does not require the group to be sealed, but sealing it first (evidence_seal) is advised. The dossier is then CERTIFYING: poll dossier_get until CERTIFIED. On GoCertius the evidence files are not embedded in the certificate. For several groups use dossier_create, dossier_evidence_link and dossier_certify.",
   inputSchema,
   annotations: {
     title: "Dossier Group Certify",
