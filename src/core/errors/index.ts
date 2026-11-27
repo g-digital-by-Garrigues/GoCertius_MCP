@@ -41,8 +41,17 @@ export interface McpErrorContent {
 }
 
 export function toolError(opts: ToolErrorOpts): McpErrorContent {
-  const upstreamMsg =
-    opts.upstream instanceof Error ? opts.upstream.message : String(opts.upstream);
+  // E22 22-18 review: a 422 inside a one-call tool (signature_request_full…) used to say only "returned
+  // HTTP 422" — the field issues that tell the agent what to fix were dropped here.
+  const fieldIssues =
+    opts.upstream instanceof UpstreamHttpError && opts.upstream.fieldErrors
+      ? ` — field issues: ${Object.entries(opts.upstream.fieldErrors)
+          .map(([field, issue]) => `${field}: ${issue}`)
+          .join("; ")}`
+      : "";
+  const upstreamMsg = `${
+    opts.upstream instanceof Error ? opts.upstream.message : String(opts.upstream)
+  }${fieldIssues}`;
   const text = [
     `Operation ${opts.operation} failed: ${upstreamMsg}`,
     `Remediation: ${opts.remediation}`,
@@ -120,7 +129,8 @@ export function mapUpstreamError(err: unknown, opts?: UpstreamErrorOpts): McpErr
       remediation: { text: "Review the error and retry." },
     };
 
-    if (err.status === 422 && err.fieldErrors) {
+    // E22 22-18 review: the platform's query validation answers 400 with the same `{ errors }` body.
+    if ((err.status === 422 || err.status === 400) && err.fieldErrors) {
       const fieldParts = Object.entries(err.fieldErrors).map(([field, hint]) => {
         const staticHint = opts?.hints?.[field];
         return `  ${field}: ${hint}${staticHint ? ` — ${hintText(staticHint)}` : ""}`;
@@ -208,6 +218,34 @@ export function inferRemediation(err: unknown, hints: Record<string, string>): s
   return Object.values(hints)[0] ?? "Review the input fields and retry.";
 }
 
+/**
+ * One field issue of a 422 body, as text an agent can act on. The platform sends either strings or
+ * `{ error, info }` objects (E22 22-18: `validatorIds: [object Object]` reached an agent before this).
+ */
+function describeFieldIssue(issue: unknown): string {
+  if (typeof issue === "string") return issue;
+  if (typeof issue === "object" && issue !== null) {
+    const { error, info } = issue as { error?: unknown; info?: unknown };
+    if (typeof error === "string") {
+      const hasInfo =
+        info !== undefined &&
+        info !== null &&
+        !(typeof info === "object" && Object.keys(info as object).length === 0);
+      return hasInfo ? `${error} ${JSON.stringify(info)}` : error;
+    }
+    return JSON.stringify(issue);
+  }
+  return String(issue);
+}
+
+/** Longest text kept for one field's issues: a platform `info` can echo a whole submitted value. */
+const FIELD_ISSUE_MAX_CHARS = 300;
+function capIssue(text: string): string {
+  return text.length <= FIELD_ISSUE_MAX_CHARS
+    ? text
+    : `${text.slice(0, FIELD_ISSUE_MAX_CHARS - 1)}…`;
+}
+
 export class UpstreamHttpError extends Error {
   constructor(
     public readonly status: number,
@@ -245,7 +283,7 @@ export class UpstreamHttpError extends Error {
   static fromParsedError(status: number, body: unknown, operation: string): UpstreamHttpError {
     let fieldErrors: Record<string, string> | undefined;
     if (
-      status === 422 &&
+      (status === 422 || status === 400) &&
       body !== null &&
       typeof body === "object" &&
       "errors" in (body as object)
@@ -254,8 +292,12 @@ export class UpstreamHttpError extends Error {
       if (typeof errors === "object" && errors !== null) {
         fieldErrors = {};
         for (const [k, v] of Object.entries(errors as Record<string, unknown>)) {
-          fieldErrors[k] = Array.isArray(v) ? (v[0] as string) : String(v);
+          fieldErrors[k] = capIssue(
+            (Array.isArray(v) ? v : [v]).map(describeFieldIssue).join(", "),
+          );
         }
+        // An empty `errors` object is not a list of issues: the agent would see "Field issues:" and nothing.
+        if (Object.keys(fieldErrors).length === 0) fieldErrors = undefined;
       }
     }
 

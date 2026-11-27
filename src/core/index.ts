@@ -3,6 +3,7 @@
 
 // Auth
 export { AuthConfigError, detectAuthAdapter } from "./auth/detect.js";
+export { HumanActionRequiredError } from "./auth/errors.js";
 export type { CallerProfile } from "./auth/profile.js";
 export { fetchCallerProfile, fetchCallerUserId } from "./auth/profile.js";
 export type { AuthAdapter, AuthContext } from "./auth/session.js";

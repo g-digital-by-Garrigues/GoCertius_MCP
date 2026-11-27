@@ -3,6 +3,8 @@
  * AC1-AC8 per STR-E3-03.
  */
 
+import { HumanActionRequiredError } from "./errors.js";
+
 export interface AuthContext {
   token: string;
   expiresAt: number;
@@ -91,6 +93,8 @@ export class AuthSession {
       try {
         return await this.adapter.login();
       } catch (err) {
+        // Nothing a retry can change: a person has to act on the platform first.
+        if (err instanceof HumanActionRequiredError) throw err;
         lastErr = err;
         if (i < MAX_REFRESH_RETRIES - 1) {
           await sleep(2 ** i * 500);

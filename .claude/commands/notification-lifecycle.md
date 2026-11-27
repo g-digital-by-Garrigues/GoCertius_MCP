@@ -55,34 +55,29 @@ must go on before recipients. See the `notification-attachments` skill.
 
 4. **Send the notification**
    - `notification_request_send` with `caseFileId` and `notificationRequestId`
-   - Returns immediately — delivery is async; status transitions to `SENT`
+   - Returns immediately — delivery is async: the request becomes `IN_PROCESS`, then `SENT`, and later `PARTIALLY_READ`, `FULLY_READ`, `PARTIALLY_ANSWERED`, `FULLY_ANSWERED`
 
 5. **Monitor delivery**
    - `notification_request_status` with `caseFileId` and `notificationRequestId`
    - Check `status` and `receiverStats` (total / bounced / valid)
 
-   **Completion detection:**
+   **Completion detection:** every client polls — `notification_request_status` until `status: SENT` or beyond (`PARTIALLY_READ`, `FULLY_READ`, `PARTIALLY_ANSWERED`, `FULLY_ANSWERED`).
 
-   | Runtime | Approach |
-   |---|---|
-   | Claude Code / n8n (standard `callTool`) | Poll `notification_request_status` until `status: SENT` or beyond (`PARTIALLY_READ`, `FULLY_READ`, `PARTIALLY_ANSWERED`, `FULLY_ANSWERED`) |
-   | Task-capable MCP client (experimental task streaming) | Server pushes completion via SSE when notification is sent — no polling needed |
-
-6. **Generate per-receiver certificates** (once the notification is certifiable)
+6. **Generate per-receiver certificates**
    - `notification_certificate_get` with a generated UUID `id`, `caseFileId`, `notificationRequestId`, `receiverId`, `language`
-   - For simple delivery evidence, start after `SENT` only if the platform already exposes evidence/certificate data. For notification types that expect recipient action, prefer `PARTIALLY_READ`/`FULLY_READ` or `PARTIALLY_ANSWERED`/`FULLY_ANSWERED`.
-   - Re-call after `FULLY_ANSWERED` for the final answer certificate.
-   - The first call can return `{}` while generation is queued. Reuse the same
-     certificate `id` and poll/re-call until the response includes a PDF URL or
-     final certificate status.
-   - If the endpoint returns `Forbidden` or `{ "code": "Unexpected", "id": ... }`,
-     stop polling `notification_certificate_get`; poll `notification_request_status`
-     until the notification progresses or verify the evidence in the UI, then
-     retry with the same certificate id.
+   - Optional `embeddedDocuments: true` embeds the notification's documents in the certificate (409 if the
+     notification has none). It is fixed when the certificate is created.
+   - It answers 403 while the notification is `DRAFT` or while **that receiver** is still `READY_TO_SEND`
+     — check the receiver's status with `notification_receiver_list`, then retry.
+   - Poll with the **same** `id` until `CERTIFIED`; the response then includes `documentUrl`.
+   - `partial: true` means it was issued before that receiver `READ` (`NO_RESPONSE` notifications) or
+     `ANSWERED` (other types) — the receiver's own status, not the request's. For the final certificate,
+     call again with a **new** `id` once the receiver has read or answered: the old id returns the old
+     partial certificate.
 
 
 7. **Download the certificate**
-   - `notification_certificate_list` shows what already exists for a recipient — reuse it rather than generating a duplicate. Each entry carries `status` (`DRAFT`, `CERTIFYING`, `CERTIFIED`), `partial` (an intermediate certificate, issued before the recipient finished responding) and `embeddedDocuments`.
+   - `notification_certificate_list` shows what already exists for a recipient — reuse it rather than generating a duplicate. Each entry carries `status` (`DRAFT`, `CERTIFYING`, `CERTIFIED`), `partial` (issued before that receiver `READ` — `NO_RESPONSE` — or `ANSWERED` — other types) and `embeddedDocuments`.
    - `notification_certificate_document_url` → `{ documentUrl }`, the certificate PDF **alone**
    - `notification_certificate_package_url` → `{ packageUrl }`, a ZIP with the certificate **and** the notification's attachments
    - There is **no "include annexes" flag**. The difference is simply which of the two you call. Generation is async — the first call can 404 while the certificate is still `CERTIFYING`, so poll a few times rather than hammering it.
@@ -178,8 +173,8 @@ notification_certificate_get
 | Mistake | Effect | Fix |
 |---|---|---|
 | Forget `notification_request_send` | Notification stays DRAFT forever | Always call send after adding recipients |
-| Call `notification_certificate_get` before send | Certificate generation may fail — notification not sent yet | Send first, then generate the certificate |
-| Waiting for a read/answer before requesting any certificate | Needless delay — a certificate is obtainable at `SENT` | TESTED: `notification_certificate_get` right after `SENT` returned `CERTIFYING → CERTIFIED` with `partial: true`. Request it at `SENT` for delivery evidence, and re-request after `FULLY_ANSWERED` for the final one. Only if it repeatedly returns `Forbidden` / `Unexpected` should you wait for the notification to progress |
+| Call `notification_certificate_get` before send | 403 while the notification is `DRAFT` | Send first, then generate the certificate |
+| Waiting for a read/answer before requesting any certificate | Needless delay — a certificate is obtainable at `SENT` | TESTED: `notification_certificate_get` right after `SENT` returned `CERTIFYING → CERTIFIED` with `partial: true`. Request it for delivery evidence once that receiver is no longer `READY_TO_SEND` (403 until then); for the final one, call again with a new `id` after that receiver has read (`NO_RESPONSE`) or answered (other types) |
 | Missing `caseFileId` in receiver add | 404 or routing error | Always pass `caseFileId` alongside `notificationRequestId` |
 | `otpByDefault: true` without phone number | Recipient cannot pass OTP challenge | Set `phoneNumber` + `phonePrefix` on each receiver when OTP is required |
 | Plain text in `content` (no HTML tags) | Content does not render on recipient landing page | Wrap in HTML: `<p>Your text here.</p>`. Supported: `<p>`, `<strong>`, `<em>`, `<ul><li>`, `<ol><li>` |

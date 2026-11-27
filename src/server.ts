@@ -8,6 +8,12 @@ import { evidence_seal } from "./tools/evidence_seal.js";
 import { evidence_get } from "./tools/evidence_get.js";
 import { evidence_group_create } from "./tools/evidence_group_create.js";
 import { evidence_group_list } from "./tools/evidence_group_list.js";
+import { evidence_group_get } from "./tools/evidence_group_get.js";
+import { evidence_group_update } from "./tools/evidence_group_update.js";
+import { evidence_group_delete } from "./tools/evidence_group_delete.js";
+import { evidence_download_url } from "./tools/evidence_download_url.js";
+import { evidence_update } from "./tools/evidence_update.js";
+import { evidence_delete } from "./tools/evidence_delete.js";
 import { dossier_create } from "./tools/dossier_create.js";
 import { dossier_update } from "./tools/dossier_update.js";
 import { dossier_certify } from "./tools/dossier_certify.js";
@@ -52,18 +58,49 @@ import { notification_certificate_package_url } from "./tools/notification_certi
 import { case_file_create } from "./tools/case_file_create.js";
 import { case_file_list } from "./tools/case_file_list.js";
 import { case_file_get } from "./tools/case_file_get.js";
-import { case_file_delete } from "./tools/case_file_delete.js";
+import { case_file_update } from "./tools/case_file_update.js";
 import { chat_create } from "./tools/chat_create.js";
 import { chat_get } from "./tools/chat_get.js";
 import { chat_invitation_url } from "./tools/chat_invitation_url.js";
 import { chat_certificate_create } from "./tools/chat_certificate_create.js";
 import { chat_certificate_get } from "./tools/chat_certificate_get.js";
+import { chat_list } from "./tools/chat_list.js";
+import { chat_message_list } from "./tools/chat_message_list.js";
+import { chat_participant_list } from "./tools/chat_participant_list.js";
 import { session_login } from "./tools/session_login.js";
 import { session_info } from "./tools/session_info.js";
 import { profile_get } from "./tools/profile_get.js";
+import { signature_group_create } from "./tools/signature_group_create.js";
+import { signature_group_list } from "./tools/signature_group_list.js";
+import { signature_request_create } from "./tools/signature_request_create.js";
+import { signature_request_get } from "./tools/signature_request_get.js";
+import { signature_request_cancel } from "./tools/signature_request_cancel.js";
+import { signature_request_add_document } from "./tools/signature_request_add_document.js";
+import { signature_document_list } from "./tools/signature_document_list.js";
+import { signature_document_signatory_list } from "./tools/signature_document_signatory_list.js";
+import { signature_document_observer_list } from "./tools/signature_document_observer_list.js";
+import { signature_signatory_progress_list } from "./tools/signature_signatory_progress_list.js";
+import { signature_participant_create } from "./tools/signature_participant_create.js";
+import { signature_participant_add_bulk } from "./tools/signature_participant_add_bulk.js";
+import { signature_participant_list } from "./tools/signature_participant_list.js";
+import { signature_participant_update } from "./tools/signature_participant_update.js";
+import { signature_participant_delete } from "./tools/signature_participant_delete.js";
+import { signature_participant_invalid_purge } from "./tools/signature_participant_invalid_purge.js";
+import { assign_validator_to_signatory } from "./tools/assign_validator_to_signatory.js";
+import { signature_validator_list } from "./tools/signature_validator_list.js";
+import { signature_validator_unassign } from "./tools/signature_validator_unassign.js";
+import { activate_signature_request } from "./tools/activate_signature_request.js";
+import { signature_coordinate_set } from "./tools/signature_coordinate_set.js";
+import { signature_certificate_get } from "./tools/signature_certificate_get.js";
+import { signature_request_list } from "./tools/signature_request_list.js";
+import { signature_document_signed_url } from "./tools/signature_document_signed_url.js";
+import { signature_certificate_package_url } from "./tools/signature_certificate_package_url.js";
+import { signature_request_resend } from "./tools/signature_request_resend.js";
+import { signature_request_close } from "./tools/signature_request_close.js";
 import { evidence_upload } from "./tools/evidence_upload.js";
 import { notification_send } from "./tools/notification_send.js";
 import { notification_send_with_attachments } from "./tools/notification_send_with_attachments.js";
+import { signature_request_full } from "./tools/signature_request_full.js";
 
 await createServer({
   name: "io.github.g-digital-by-Garrigues/gocertius",
@@ -75,6 +112,12 @@ evidence_seal,
 evidence_get,
 evidence_group_create,
 evidence_group_list,
+evidence_group_get,
+evidence_group_update,
+evidence_group_delete,
+evidence_download_url,
+evidence_update,
+evidence_delete,
 dossier_create,
 dossier_update,
 dossier_certify,
@@ -119,17 +162,48 @@ notification_certificate_package_url,
 case_file_create,
 case_file_list,
 case_file_get,
-case_file_delete,
+case_file_update,
 chat_create,
 chat_get,
 chat_invitation_url,
 chat_certificate_create,
 chat_certificate_get,
+chat_list,
+chat_message_list,
+chat_participant_list,
 session_login,
 session_info,
 profile_get,
+signature_group_create,
+signature_group_list,
+signature_request_create,
+signature_request_get,
+signature_request_cancel,
+signature_request_add_document,
+signature_document_list,
+signature_document_signatory_list,
+signature_document_observer_list,
+signature_signatory_progress_list,
+signature_participant_create,
+signature_participant_add_bulk,
+signature_participant_list,
+signature_participant_update,
+signature_participant_delete,
+signature_participant_invalid_purge,
+assign_validator_to_signatory,
+signature_validator_list,
+signature_validator_unassign,
+activate_signature_request,
+signature_coordinate_set,
+signature_certificate_get,
+signature_request_list,
+signature_document_signed_url,
+signature_certificate_package_url,
+signature_request_resend,
+signature_request_close,
 evidence_upload,
 notification_send,
 notification_send_with_attachments,
+signature_request_full,
   ],
 });

@@ -40,7 +40,7 @@ case_file_create(
 
 To find a valid `useCaseId`: call `case_file_list`, pick any case file, and reuse its `useCaseId`.
 
-> **Chats** are special — they can only be created in your **personal case file** (the oldest one owned by you). See `/chat-lifecycle` for details.
+> **Chats** are special — they can only be created in your **personal case file** (`defaultCaseFileId` in `session_info`). See `/chat-lifecycle` for details.
 
 ## Step 2 — Generate valid UUIDs
 
@@ -89,8 +89,8 @@ appears without the key having expired is worth reporting rather than retrying.
 | Using case file `code` (GN652) instead of `id` | 404 Not Found | Use `id` UUID from `case_file_list` |
 | Not calling `session_login` first | 401 Unauthorized | Always authenticate before calling any other tool |
 | Invalid UUID in any `id` field | Validation error | 4th group must start with `8`, `9`, `a`, or `b` |
-| Leaving an evidence group unsealed | Group stays OPEN forever, never certified | Always call `evidence_seal` after adding all evidence items |
-| Creating a chat in the wrong case file | Platform rejects the chat | Chats only work in the personal case file (oldest, owned by you) |
+| Leaving an evidence group unsealed | Group stays OPEN | Call `evidence_seal` after adding all evidence items — the API does not require it before linking or certifying, but it is advised |
+| Creating a chat in the wrong case file | Platform rejects the chat | Chats only work in the personal case file (`defaultCaseFileId` in `session_info`) |
 | `chatMessagesFrom` before `registeredAt` | Validation error | Check `registeredAt` via `chat_get` before creating certificate |
 
 ## Quick reference
@@ -100,7 +100,11 @@ appears without the key having expired is worth reporting rather than retrying.
 | Authenticate | `session_login` |
 | List my case files | `case_file_list` (needs `userId`) |
 | Create a case file | `case_file_create` |
+| Rename a case file, or close / reopen it | `case_file_update` (`status: CLOSED` refuses new evidence groups and evidences until set back to `OPEN`) |
 | Certify evidence | See `/evidence-lifecycle` |
+| Fix, delete or download an evidence or group | `evidence_update`, `evidence_delete`, `evidence_download_url`, `evidence_group_get` / `_update` / `_delete` — see `/evidence-lifecycle` |
 | Create a certified dossier | See `/dossier-lifecycle` |
+| Get documents signed | `signature_request_full` (the whole request in one call) — see `/signature-lifecycle` |
 | Send a certified notification | See `/notification-lifecycle` |
 | Start a certified Telegram chat | See `/chat-lifecycle` |
+| Find an existing chat and its messages | `chat_list`, `chat_message_list`, `chat_participant_list` — see `/chat-lifecycle` |

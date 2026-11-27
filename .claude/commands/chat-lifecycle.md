@@ -1,16 +1,29 @@
 # Certified Chat Lifecycle
 
-Create a Telegram-based certified chat session and generate a tamper-evident certificate of the conversation.
+Create a Telegram-based certified chat session and generate a certificate (PDF) of the conversation.
 
 ## Key constraint
 
-**Chats can only be created in the user's personal case file** — the case file created automatically when the GoCertius account was opened. Creating a chat in any other case file is not supported by the platform even if the API accepts the call. Use `session_info` → `case_file_list` to find the personal case file (typically the oldest one, owned by the user).
+**Chats can only be created in the user's personal case file** — the case file created automatically when the GoCertius account was opened. Creating a chat in any other case file is not supported by the platform even if the API accepts the call. Its id is `defaultCaseFileId` in `session_info`.
 
-## Flow
+## Find an existing chat (before certifying it)
+
+When the user wants to certify a conversation that already exists, do not create a new chat:
+
+- `chat_list` with the personal case file's `caseFileId` → pick the chat (`filter.search` matches the
+  title; `filter.createdFrom` / `filter.createdUntil` narrow by creation date; `filter.status`: `creating`
+  (not confirmed yet — its messages and participants answer 404), `active`, or `inactive` (not set by
+  the current platform version))
+- `chat_participant_list` with `caseFileId` and `chatId` → confirm who joined the Telegram group
+- `chat_message_list` with `caseFileId` and `chatId` (optionally `filter.writtenFrom` / `filter.writtenTo`)
+  → choose the message range to certify
+- then go to step 5 below (create the certificate), keeping `chatMessagesFrom` at or after the chat's
+  `registeredAt` (`chat_get`)
+
+## Flow (new chat)
 
 1. **Find the personal case file**
-   - `session_info` → get `userId`
-   - `case_file_list` with `userId` → find the personal case file (oldest `createdAt`, owned by the user)
+   - `session_info` → `defaultCaseFileId` is the personal case file
    - Note its `id` and `code`
 
 2. **Create the chat**
@@ -28,16 +41,16 @@ Create a Telegram-based certified chat session and generate a tamper-evident cer
 
 4. **Participants chat**
    - All messages sent in the Telegram group are captured by the GoCertius bot
-   - Note: `chatMessagesFrom` for the certificate must be **after** the chat's `registeredAt` timestamp (visible via `chat_get`)
+   - Note: `chatMessagesFrom` for the certificate must be **at or after** the chat's `registeredAt` timestamp (visible via `chat_get`)
    - `createdAt` is not a valid substitute for `registeredAt`; if
      `registeredAt` is missing, wait or ask the user to join/register the chat
      through the invitation flow before creating a certificate.
 
 5. **Create the certificate**
    - `chat_certificate_create` with a generated UUID `id`, `caseFileId`, `chatId`, `name`, `language`
-   - `chatMessagesFrom`: ISO datetime — must be **strictly after** the chat's `registeredAt` (use `chat_get` to confirm; setting it to exactly `registeredAt` or before causes validation error)
-   - `chatMessagesTo`: ISO datetime — can be now or any future point
-   - The certificate is generated asynchronously but typically certifies within seconds
+   - `chatMessagesFrom`: ISO datetime — must be **at or after** the chat's `registeredAt` (use `chat_get` to read it; an earlier value is refused with `422 lessThan: registeredAt`), and before `chatMessagesTo`
+   - `chatMessagesTo`: ISO datetime — a future value is **not** refused: the platform silently caps it to the current time, so messages written later are not covered
+   - The certificate is generated asynchronously but typically certifies within seconds: `DRAFT` → `CERTIFYING` → `CERTIFIED`, or back to `DRAFT` if certification fails
 
 6. **Retrieve the certificate**
    - `chat_certificate_get` with `caseFileId`, `chatId`, `id` (certificate UUID)
@@ -49,8 +62,7 @@ Create a Telegram-based certified chat session and generate a tamper-evident cer
 "Certify the Telegram conversation that happened today in my personal case file."
 
 ```
-session_info                              → userId
-case_file_list  userId=<uuid>            → personal caseFileId
+session_info                              → defaultCaseFileId (the personal case file)
 chat_create     id=<uuid>  caseFileId=<id>  title="..."  service=Telegram  language=es_ES
 chat_get        caseFileId=<id>  chatId=<uuid>   → check registeredAt
 chat_invitation_url  caseFileId=<id>  chatId=<uuid>   → share https://t.me/+...
@@ -68,5 +80,5 @@ chat_certificate_get  caseFileId=<id>  chatId=<uuid>  id=<cert-uuid>  → CERTIF
 | Wrong case file | Chat created but platform rejects it as invalid | Always use the user's personal case file |
 | Request invitation while status is `creating` | API can return `Chat not found` | Poll `chat_get` until the chat is active/registered |
 | Certificate before `registeredAt` exists | Error `Can not create a chat certificate without registered at` | Wait for the Telegram bot/chat registration and use `registeredAt` |
-| `chatMessagesFrom` before or equal to `registeredAt` | Validation error `lessThan: registeredAt` | Use `chat_get` to check `registeredAt`, set `from` strictly after that value |
+| `chatMessagesFrom` before `registeredAt` | Validation error `lessThan: registeredAt` | Use `chat_get` to read `registeredAt`, and set `from` to it or later |
 | Missing `caseFileId` in `chat_certificate_get` | API returns empty error | Always pass `caseFileId` — it's required even though some clients hide it |

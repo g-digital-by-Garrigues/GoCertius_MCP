@@ -11,12 +11,14 @@ import { defineTool } from "../core/index.js";
 export const dossier_certify = defineTool({
   name: "dossier_certify",
   description:
-    "Certifies a DRAFT dossier, locking in all its associated evidence groups. " +
-    "The dossier must be in DRAFT status. After certification it transitions to CERTIFIED " +
-    "and a tamper-evident PDF is generated. " +
-    "Prerequisites: the dossier must exist (dossier_create) and have evidence groups linked. " +
-    "Use dossier_group_certify instead if you want to create + certify in one step from a single evidence group. " +
-    "Example: dossier_certify({ caseFileId: '...', dossierId: '...' })",
+    "Certifies a DRAFT dossier, generating its certificate (403 if not DRAFT; also 403 if you " +
+    "are not the dossier's owner or lack the editor role on the case file). Requires: " +
+    "dossierId, caseFileId, and at least one evidence linked with dossier_evidence_link, all " +
+    "COMPLETED and no more than the platform's maximum, else 409. ASYNC: DRAFT → CERTIFYING → " +
+    "CERTIFIED, or back to DRAFT if certification fails (then call it again); poll dossier_get " +
+    "until CERTIFIED, then " +
+    "download with dossier_document_url. For one evidence group, dossier_group_certify creates " +
+    "and certifies in one call.",
   inputSchema: z.object({
     caseFileId: z.string().describe("UUID of the case file that owns this dossier"),
     dossierId: z.string().describe("UUID of the dossier to certify (must be in DRAFT status)"),

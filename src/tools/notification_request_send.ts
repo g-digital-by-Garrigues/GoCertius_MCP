@@ -15,7 +15,12 @@ const inputSchema = z.object({
 export const notification_request_send = defineTool({
   name: "notification_request_send",
   description:
-    "Trigger delivery of a certified notification to all added recipients. Returns immediately — delivery is async. Poll notification_request_status until status is DELIVERED before retrieving certificates.",
+    "Sends a DRAFT certified notification to its receivers. Requires: " +
+    "notification_request_create → notificationRequestId, caseFileId and at least one receiver " +
+    "(notification_receiver_add). 403 if it is not DRAFT; 409 if no receiver is READY_TO_SEND, " +
+    "any is INVALID (see notification_receiver_invalid_purge) or the plan's receiver or document " +
+    "cap is exceeded. ASYNC: the status becomes IN_PROCESS; poll notification_request_status " +
+    "until SENT or beyond before calling notification_certificate_get.",
   inputSchema,
   annotations: {
     title: "Notification Request Send",
@@ -30,7 +35,7 @@ export const notification_request_send = defineTool({
     const token = ctx.auth?.token ?? "";
     const sdkClient = createClient(
       createConfig({
-        baseUrl: process.env.MCP_API_BASE_URL ?? "",
+        baseUrl: process.env.MCP_API_BASE_URL ?? "https://api-gocertius.gocertius.io",
         headers: {
           Authorization: `Bearer ${token}`,
           ...(ctx.correlationId ? { "X-Correlation-Id": ctx.correlationId } : {}),

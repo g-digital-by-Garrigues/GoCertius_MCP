@@ -19,7 +19,11 @@ const inputSchema = z.object({
 export const evidence_seal = defineTool({
   name: "evidence_seal",
   description:
-    "Seal and certify an evidence group. Closes the group to new additions and triggers async timestamping. Returns immediately — the group transitions OPEN → CLOSING → CLOSED. Poll evidence_group_list until status is CLOSED before linking to a dossier.",
+    "Seals (closes) an evidence group. Requires: caseFileId, evidenceGroupId, and every INTERNAL " +
+    "evidence in the group already uploaded and verified (evidence_get/evidence_list). Set " +
+    "evidencesCount to the number of evidences in the group. ASYNC: the group goes OPEN → " +
+    "CLOSING → CLOSED; poll evidence_group_list until CLOSED, then use dossier_group_certify or " +
+    "dossier_evidence_link.",
   inputSchema,
   annotations: {
     title: "Evidence Seal",
@@ -34,7 +38,7 @@ export const evidence_seal = defineTool({
     const token = ctx.auth?.token ?? "";
     const sdkClient = createClient(
       createConfig({
-        baseUrl: process.env.MCP_API_BASE_URL ?? "",
+        baseUrl: process.env.MCP_API_BASE_URL ?? "https://api-gocertius.gocertius.io",
         headers: {
           Authorization: `Bearer ${token}`,
           ...(ctx.correlationId ? { "X-Correlation-Id": ctx.correlationId } : {}),

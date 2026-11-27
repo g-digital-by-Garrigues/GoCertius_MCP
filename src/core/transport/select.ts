@@ -13,15 +13,17 @@ export class UnknownTransportError extends Error {
   }
 }
 
-export function selectTransport(
-  env = process.env.MCP_TRANSPORT ?? "stdio",
-): StdioTransport | HttpTransport {
-  switch (env) {
+export function selectTransport(env = process.env.MCP_TRANSPORT): StdioTransport | HttpTransport {
+  // Empty means unset, as it does for every other variable in .env.example (Story 20-06,
+  // second review). `?? "stdio"` let "" through to the unknown-value branch, so the emitted
+  // `MCP_TRANSPORT=` line — or an optional form field left blank — refused to start the server.
+  const value = env || "stdio";
+  switch (value) {
     case "stdio":
       return new StdioTransport();
     case "http":
       return new HttpTransport();
     default:
-      throw new UnknownTransportError(env);
+      throw new UnknownTransportError(value);
   }
 }

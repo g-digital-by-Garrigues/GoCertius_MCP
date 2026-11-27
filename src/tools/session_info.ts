@@ -17,15 +17,12 @@ const BASE_URL = process.env.MCP_API_BASE_URL ?? "https://api-gocertius.gocertiu
 export const session_info = defineTool({
   name: "session_info",
   description:
-    "Returns the authenticated user's session info. `type` is how this MCP session " +
-    "authenticated — always 'UserKey', the server's only auth flow. `accountLoginType` is a " +
-    "different fact: how the underlying GoCertius account itself signs in ('Password' or " +
-    "'OpenId'), reported from GET /profile, null if the API omits it. " +
-    "Use this to retrieve the userId (UUID) required by case_file_list and other user-scoped " +
-    "operations, or to verify who is authenticated. " +
-    "profile_get is the canonical way to obtain the userId and returns more of the profile. " +
-    "Prerequisites: a valid session (call session_login first if needed). " +
-    "Example: session_info() → { userId: '...uuid...', type: 'UserKey', accountLoginType: 'Password' }",
+    "Returns who is authenticated: userId, email, companyId and defaultCaseFileId from GET " +
+    "/profile; `type`, how this MCP session authenticated (always 'UserKey', the server's only " +
+    "flow); and `accountLoginType`, a different fact: how the account itself signs in " +
+    "('Password' or 'OpenId', from /profile, null if missing). Gives the userId that " +
+    "case_file_list and other user-scoped tools need; profile_get is its canonical source and " +
+    "returns the full profile. No parameters.",
   inputSchema: z.object({}),
   annotations: {
     title: "Session Info",
@@ -35,7 +32,8 @@ export const session_info = defineTool({
     openWorldHint: false,
   },
   pollable: false,
-  idempotencyWindowSeconds: 60,
+  // E22 (Hugo, 2026-11-27): read tools answer fresh — no result cache.
+  idempotencyWindowSeconds: 0,
   async execute(_input, ctx) {
     const token = ctx.auth?.token ?? "";
 

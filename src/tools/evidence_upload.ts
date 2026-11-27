@@ -20,9 +20,7 @@ export const evidence_upload = defineTool({
   description:
     "Uploads a local file as evidence in one step: computes its SHA-256, registers the evidence " +
     "record (custodyType INTERNAL = GoCertius stores the file), and uploads the bytes to S3 — no " +
-    "manual hashing or PUT needed. Internally this follows the required GoCertius sequence: " +
-    "create INTERNAL evidence → receive uploadFileUrl (presigned S3 URL) → PUT file bytes → " +
-    "return uploaded:true. " +
+    "manual hashing or PUT needed; returns uploaded:true. " +
     "Requires: case_file_create → caseFileId, evidence_group_create → evidenceGroupId. " +
     "Provide EXACTLY ONE of `filePath` (absolute local path, stdio/local mode only) or " +
     "`contentBase64` (base64-encoded file content, ~10 MB max). " +

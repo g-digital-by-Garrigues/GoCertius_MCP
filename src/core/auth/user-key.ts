@@ -6,6 +6,7 @@
  * short-lived session JWT. Refresh = re-exchange the key (no interactive step).
  * The AuthSession wrapper handles caching, proactive refresh, and 401 retry.
  */
+import { HumanActionRequiredError } from "./errors.js";
 import type { AuthAdapter, AuthContext } from "./session.js";
 
 export interface UserKeyConfig {
@@ -43,6 +44,22 @@ export class UserKeyAdapter implements AuthAdapter {
     }
 
     if (!res.ok) {
+      // 409 RequiredToAcceptNewLegalTexts (g-certius-back): the key is fine, but the account must accept new
+      // legal texts in the web app first. No retry and no other key will help — only a person can.
+      if (res.status === 409) {
+        const body = (await res.json().catch(() => undefined)) as
+          | { code?: string; info?: { pendingLegalTextCodes?: unknown } }
+          | undefined;
+        if (body?.code === "RequiredToAcceptNewLegalTexts") {
+          const codes = Array.isArray(body.info?.pendingLegalTextCodes)
+            ? body.info.pendingLegalTextCodes.filter((c): c is string => typeof c === "string")
+            : [];
+          throw new HumanActionRequiredError(
+            `The platform requires the account behind MCP_AUTH_USER_KEY to accept new legal texts${codes.length ? ` (${codes.join(", ")})` : ""} before any session can open.`,
+            "Only a person can do this: sign in to the platform's web app with that account and accept the new legal texts, then call again. Retrying, or changing the key, will not help — tell your user.",
+          );
+        }
+      }
       throw new Error(`MCP_AUTH_USER_KEY rejected by /user-keys/session: HTTP ${res.status}`);
     }
 

@@ -2,6 +2,20 @@
 
 import * as z from 'zod';
 
+export const zCreateEadtrustIdSessionControllerRunResponse = z.object({
+    jwt: z.string()
+});
+
+export const zCreateEadtrustIdSessionWithLegalTextsControllerRunBody = z.object({
+    legalTextLanguage: z.enum(['en_GB', 'es_ES']),
+    acceptServiceTermId: z.string().optional(),
+    acceptPrivacyPolicyId: z.string().optional()
+});
+
+export const zCreateEadtrustIdSessionWithLegalTextsControllerRunResponse = z.object({
+    jwt: z.string()
+});
+
 export const zCreateOpenIdSessionControllerRunResponse = z.object({
     jwt: z.string()
 });
@@ -1110,7 +1124,8 @@ export const zCreateDossierControllerRunBody = z.object({
     filledFields: z.record(z.string(), z.unknown()).optional(),
     validityFrom: z.string(),
     validityTo: z.string(),
-    accessToken: z.string().optional()
+    accessToken: z.string().optional(),
+    embeddedEvidences: z.boolean().optional()
 });
 
 export const zCreateDossierControllerRunPath = z.object({
@@ -1174,6 +1189,7 @@ export const zShowDossierControllerRunResponse = z.object({
         lastName: z.string()
     }).optional(),
     accessToken: z.string().optional(),
+    embeddedEvidences: z.boolean(),
     evidenceStats: z.object({
         total: z.number(),
         completed: z.number(),
@@ -1196,7 +1212,8 @@ export const zUpdateDossierControllerRunBody = z.object({
     filledFields: z.record(z.string(), z.unknown()).optional(),
     validityFrom: z.string().optional(),
     validityTo: z.string().optional(),
-    accessToken: z.string().optional()
+    accessToken: z.string().optional(),
+    embeddedEvidences: z.boolean().optional()
 });
 
 export const zUpdateDossierControllerRunPath = z.object({
@@ -2743,6 +2760,1193 @@ export const zUpdateNotificationRequestCaseFileIdControllerRunPath = z.object({
     notificationRequestId: z.string()
 });
 
+export const zListSignaturePartialCertificatesControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string()
+});
+
+export const zListSignaturePartialCertificatesControllerRunQuery = z.object({
+    filter: z.object({
+        id: z.string().optional()
+    }).optional(),
+    order: z.object({
+        createdAt: z.enum(['ASC', 'DESC']).optional()
+    }).optional(),
+    page: z.object({
+        number: z.number().gte(1).default(1),
+        size: z.number().gte(0).lte(100).default(20)
+    }).optional()
+});
+
+export const zListSignaturePartialCertificatesControllerRunResponse = z.object({
+    data: z.array(z.object({
+        id: z.string(),
+        requestId: z.string(),
+        documentId: z.string(),
+        status: z.enum([
+            'CERTIFYING',
+            'DRAFT',
+            'CERTIFIED'
+        ]),
+        createdAt: z.string(),
+        certifiedAt: z.string().optional()
+    })).optional(),
+    meta: z.object({
+        totalElements: z.number().optional()
+    }).optional()
+});
+
+export const zCreateSignaturePartialCertificateControllerRunBody = z.object({
+    id: z.uuid()
+});
+
+export const zCreateSignaturePartialCertificateControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string()
+});
+
+export const zProcessSignatureCertificatesCallbackControllerRunBody = z.object({
+    operationType: z.enum(['REPORTS']),
+    data: z.object({
+        processId: z.uuid()
+    })
+});
+
+export const zProcessSignatureCertificatesCallbackControllerRunResponse = z.void();
+
+export const zShowSignatureCertificateDocumentUrlControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string()
+});
+
+export const zShowSignatureCertificateDocumentUrlControllerRunResponse = z.object({
+    documentUrl: z.string()
+});
+
+export const zShowSignatureCertificatePackageUrlControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string()
+});
+
+export const zShowSignatureCertificatePackageUrlControllerRunResponse = z.object({
+    packageUrl: z.string()
+});
+
+export const zShowSignatureCertificateSignaturesUrlControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string()
+});
+
+export const zShowSignatureCertificateSignaturesUrlControllerRunResponse = z.object({
+    signaturesUrl: z.string()
+});
+
+export const zShowSignatureDocumentSignedDocumentUrlControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string()
+});
+
+export const zShowSignatureDocumentSignedDocumentUrlControllerRunResponse = z.object({
+    signedDocumentUrl: z.string()
+});
+
+export const zShowSignaturePartialCertificateDocumentUrlControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string(),
+    certificateId: z.string()
+});
+
+export const zShowSignaturePartialCertificateDocumentUrlControllerRunResponse = z.object({
+    documentUrl: z.string()
+});
+
+export const zShowSignaturePartialCertificatePackageUrlControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string(),
+    certificateId: z.string()
+});
+
+export const zShowSignaturePartialCertificatePackageUrlControllerRunResponse = z.object({
+    packageUrl: z.string()
+});
+
+export const zShowSignaturePartialCertificateSignaturesUrlControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string(),
+    certificateId: z.string()
+});
+
+export const zShowSignaturePartialCertificateSignaturesUrlControllerRunResponse = z.object({
+    signaturesUrl: z.string()
+});
+
+export const zActivateSignatureRequestControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string()
+});
+
+export const zCancelSignatureRequestControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string()
+});
+
+export const zCloseSignatureRequestControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string()
+});
+
+export const zCreateDocumentParticipantsControllerRunBody = z.object({
+    participantIds: z.array(z.uuid()).max(100)
+});
+
+export const zCreateDocumentParticipantsControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string()
+});
+
+export const zCreateMassiveSignatureParticipantsControllerRunBody = z.object({
+    participants: z.array(z.object({
+        id: z.string(),
+        role: z.enum([
+            'SIGNATORY',
+            'OBSERVER',
+            'VALIDATOR'
+        ]),
+        firstName: z.string(),
+        lastName: z.string(),
+        email: z.string(),
+        phoneNumber: z.string().optional(),
+        phonePrefix: z.string().optional()
+    }))
+});
+
+export const zCreateMassiveSignatureParticipantsControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string()
+});
+
+export const zListSignatoryValidatorsControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    signatoryId: z.string()
+});
+
+export const zListSignatoryValidatorsControllerRunQuery = z.object({
+    page: z.object({
+        number: z.number().gte(1).default(1),
+        size: z.number().gte(0).lte(100).default(20)
+    }).optional()
+});
+
+export const zListSignatoryValidatorsControllerRunResponse = z.object({
+    data: z.array(z.object({
+        id: z.string(),
+        email: z.string(),
+        firstName: z.string(),
+        lastName: z.string()
+    })).optional(),
+    meta: z.object({
+        totalElements: z.number().optional()
+    }).optional()
+});
+
+export const zCreateSignatoryValidatorsControllerRunBody = z.object({
+    validatorIds: z.array(z.uuid()).max(100)
+});
+
+export const zCreateSignatoryValidatorsControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    signatoryId: z.string()
+});
+
+export const zListSignatureDocumentsControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string()
+});
+
+export const zListSignatureDocumentsControllerRunQuery = z.object({
+    filter: z.object({
+        status: z.enum([
+            'PENDING',
+            'READY_TO_SIGN',
+            'PARTIALLY_SIGNED',
+            'SIGNED',
+            'REJECTED',
+            'ERROR'
+        ]).optional(),
+        fileName: z.string().optional(),
+        groupIds: z.array(z.uuid()).optional()
+    }).optional(),
+    order: z.object({
+        createdAt: z.enum(['ASC', 'DESC']).optional(),
+        groupIndex: z.enum(['ASC', 'DESC']).optional()
+    }).optional(),
+    page: z.object({
+        number: z.number().gte(1).default(1),
+        size: z.number().gte(0).lte(100).default(20)
+    }).optional()
+});
+
+export const zListSignatureDocumentsControllerRunResponse = z.object({
+    data: z.array(z.object({
+        id: z.string(),
+        requestId: z.string(),
+        groupId: z.string().optional(),
+        status: z.enum([
+            'PENDING',
+            'READY_TO_SIGN',
+            'PARTIALLY_SIGNED',
+            'SIGNED',
+            'REJECTED',
+            'ERROR'
+        ]),
+        title: z.string(),
+        fileName: z.string(),
+        fileSize: z.number().optional(),
+        convertToPdf: z.boolean(),
+        participantStats: z.object({
+            signatories: z.number(),
+            observers: z.number()
+        }),
+        signatoryStatusStats: z.object({
+            pending: z.number(),
+            readyToSign: z.number(),
+            signed: z.number(),
+            rejected: z.number()
+        }),
+        signatoryCoordinatesStats: z.object({
+            defined: z.number(),
+            missing: z.number()
+        })
+    })).optional(),
+    meta: z.object({
+        totalElements: z.number().optional()
+    }).optional()
+});
+
+export const zCreateSignatureDocumentControllerRunBody = z.object({
+    id: z.string(),
+    groupId: z.string().optional(),
+    hash: z.string(),
+    title: z.string(),
+    fileName: z.string(),
+    fileSize: z.number().optional(),
+    convertToPdf: z.boolean().optional()
+});
+
+export const zCreateSignatureDocumentControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string()
+});
+
+export const zCreateSignatureDocumentControllerRunResponse = z.object({
+    url: z.string().optional()
+});
+
+export const zListSignatureGroupsControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string()
+});
+
+export const zListSignatureGroupsControllerRunQuery = z.object({
+    filter: z.object({
+        type: z.enum([
+            'Document',
+            'DocumentSignatory',
+            'Signatory'
+        ]).optional(),
+        documentId: z.uuid().optional(),
+        id: z.string().optional()
+    }).optional(),
+    order: z.object({
+        createdAt: z.enum(['ASC', 'DESC']).optional()
+    }).optional(),
+    page: z.object({
+        number: z.number().gte(1).default(1),
+        size: z.number().gte(0).lte(100).default(20)
+    }).optional()
+});
+
+export const zListSignatureGroupsControllerRunResponse = z.object({
+    data: z.array(z.object({
+        id: z.string(),
+        requestId: z.string(),
+        documentId: z.string().optional(),
+        type: z.string(),
+        index: z.number()
+    })).optional(),
+    meta: z.object({
+        totalElements: z.number().optional()
+    }).optional()
+});
+
+export const zCreateSignatureGroupControllerRunBody = z.object({
+    id: z.string(),
+    documentId: z.string().optional(),
+    type: z.enum([
+        'Document',
+        'DocumentSignatory',
+        'Signatory'
+    ])
+});
+
+export const zCreateSignatureGroupControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string()
+});
+
+export const zListSignatureParticipantsControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string()
+});
+
+export const zListSignatureParticipantsControllerRunQuery = z.object({
+    filter: z.object({
+        role: z.enum([
+            'SIGNATORY',
+            'OBSERVER',
+            'VALIDATOR'
+        ]).optional(),
+        groupIds: z.array(z.uuid()).optional(),
+        id: z.string().optional()
+    }).optional(),
+    order: z.object({
+        createdAt: z.enum(['ASC', 'DESC']).optional(),
+        groupIndex: z.enum(['ASC', 'DESC']).optional(),
+        email: z.enum(['ASC', 'DESC']).optional()
+    }).optional(),
+    page: z.object({
+        number: z.number().gte(1).default(1),
+        size: z.number().gte(0).lte(100).default(20)
+    }).optional()
+});
+
+export const zListSignatureParticipantsControllerRunResponse = z.object({
+    data: z.array(z.object({
+        id: z.string(),
+        requestId: z.string(),
+        groupId: z.string().optional(),
+        role: z.string(),
+        firstName: z.string().optional(),
+        lastName: z.string().optional(),
+        email: z.string().optional(),
+        createdAt: z.string(),
+        sendWaUrl: z.boolean(),
+        sendSmsUrl: z.boolean(),
+        phoneNumber: z.string().optional(),
+        phonePrefix: z.string().optional(),
+        participantStats: z.object({
+            validators: z.number()
+        }).optional(),
+        documentStats: z.object({
+            signed: z.number(),
+            total: z.number()
+        }).optional(),
+        editable: z.boolean(),
+        emailBounced: z.boolean(),
+        valid: z.boolean(),
+        validationError: z.enum([
+            'TAKEN',
+            'IS_DEFINED',
+            'IS_INVALID'
+        ]).optional()
+    })).optional(),
+    meta: z.object({
+        totalElements: z.number().optional()
+    }).optional()
+});
+
+export const zCreateSignatureParticipantControllerRunBody = z.object({
+    id: z.string(),
+    groupId: z.string().optional(),
+    role: z.enum([
+        'SIGNATORY',
+        'OBSERVER',
+        'VALIDATOR'
+    ]),
+    firstName: z.string(),
+    lastName: z.string(),
+    email: z.string(),
+    linkToAllDocuments: z.boolean().optional(),
+    sendWaUrl: z.boolean().optional(),
+    sendSmsUrl: z.boolean().optional(),
+    phoneNumber: z.string().optional(),
+    phonePrefix: z.string().optional()
+});
+
+export const zCreateSignatureParticipantControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string()
+});
+
+export const zListSignatureRequestsByCaseFileControllerRunPath = z.object({
+    caseFileId: z.string()
+});
+
+export const zListSignatureRequestsByCaseFileControllerRunQuery = z.object({
+    filter: z.object({
+        search: z.string().optional(),
+        status: z.enum([
+            'CREATING',
+            'DRAFT',
+            'ACTIVE',
+            'PARTIALLY_SIGNED',
+            'FULLY_SIGNED',
+            'CANCELLED',
+            'COMPLETED',
+            'REJECTED',
+            'CLOSING',
+            'COMPLETED_MANUAL'
+        ]).optional(),
+        statuses: z.array(z.enum([
+            'CREATING',
+            'DRAFT',
+            'ACTIVE',
+            'PARTIALLY_SIGNED',
+            'FULLY_SIGNED',
+            'CANCELLED',
+            'COMPLETED',
+            'REJECTED',
+            'CLOSING',
+            'COMPLETED_MANUAL'
+        ])).optional(),
+        createdFrom: z.string().optional(),
+        createdUntil: z.string().optional(),
+        id: z.string().optional()
+    }).optional(),
+    order: z.object({
+        createdAt: z.enum(['ASC', 'DESC']).optional()
+    }).optional(),
+    page: z.object({
+        number: z.number().gte(1).default(1),
+        size: z.number().gte(0).lte(100).default(20)
+    }).optional()
+});
+
+export const zListSignatureRequestsByCaseFileControllerRunResponse = z.object({
+    data: z.array(z.object({
+        caseFileId: z.string(),
+        id: z.string(),
+        code: z.string(),
+        name: z.string(),
+        language: z.string(),
+        status: z.enum([
+            'CREATING',
+            'DRAFT',
+            'ACTIVE',
+            'PARTIALLY_SIGNED',
+            'FULLY_SIGNED',
+            'CANCELLED',
+            'COMPLETED',
+            'REJECTED',
+            'CLOSING',
+            'COMPLETED_MANUAL'
+        ]),
+        createdAt: z.string(),
+        activatedAt: z.string().optional(),
+        completedAt: z.string().optional(),
+        closeCondition: z.enum(['ALL_REQUIRED', 'PARTIAL_ALLOWED']),
+        caseFile: z.object({
+            id: z.string(),
+            useCaseId: z.string(),
+            name: z.string(),
+            code: z.string()
+        }),
+        owner: z.object({
+            id: z.string(),
+            firstName: z.string(),
+            lastName: z.string(),
+            role: z.string()
+        }),
+        createdBy: z.object({
+            id: z.string(),
+            firstName: z.string(),
+            lastName: z.string(),
+            role: z.string()
+        }).optional()
+    })).optional(),
+    meta: z.object({
+        totalElements: z.number().optional()
+    }).optional()
+});
+
+export const zCreateSignatureRequestControllerRunBody = z.object({
+    id: z.uuid(),
+    name: z.string().max(64),
+    language: z.enum(['en_GB', 'es_ES']),
+    signatureType: z.enum([
+        'INTERPOSITION',
+        'ADVANCED',
+        'WITH_CERTIFICATE'
+    ]).optional(),
+    dashboardUrl: z.enum(['NONE', 'ANONYMIZED']).optional(),
+    sequence: z.enum(['PARALLEL', 'CONFIGURABLE']).optional(),
+    deadline: z.string(),
+    objectiveId: z.uuid().optional(),
+    closeCondition: z.enum(['ALL_REQUIRED', 'PARTIAL_ALLOWED']).optional()
+});
+
+export const zCreateSignatureRequestControllerRunPath = z.object({
+    caseFileId: z.string()
+});
+
+export const zDeleteDocumentParticipantControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string(),
+    id: z.string()
+});
+
+export const zDeleteInvalidSignatureParticipantsControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string()
+});
+
+export const zDeleteSignatoryValidatorControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    signatoryId: z.string(),
+    validatorId: z.string()
+});
+
+export const zDeleteSignatureDocumentControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string()
+});
+
+export const zUpdateSignatureDocumentControllerRunBody = z.object({
+    groupId: z.string().optional()
+});
+
+export const zUpdateSignatureDocumentControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string()
+});
+
+export const zDeleteSignatureGroupControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    groupId: z.string()
+});
+
+export const zDeleteSignatureParticipantControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    participantId: z.string()
+});
+
+export const zUpdateSignatureParticipantControllerRunBody = z.object({
+    groupId: z.string().optional(),
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    email: z.string().optional(),
+    phonePrefix: z.string().optional(),
+    phoneNumber: z.string().optional()
+});
+
+export const zUpdateSignatureParticipantControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    participantId: z.string()
+});
+
+export const zDeleteSignatureRequestControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string()
+});
+
+export const zShowSignatureRequestControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string()
+});
+
+export const zShowSignatureRequestControllerRunResponse = z.object({
+    caseFileId: z.string(),
+    id: z.string(),
+    code: z.string(),
+    name: z.string(),
+    language: z.string(),
+    status: z.enum([
+        'CREATING',
+        'DRAFT',
+        'ACTIVE',
+        'PARTIALLY_SIGNED',
+        'FULLY_SIGNED',
+        'CANCELLED',
+        'COMPLETED',
+        'REJECTED',
+        'CLOSING',
+        'COMPLETED_MANUAL'
+    ]),
+    createdAt: z.string(),
+    signatureType: z.enum([
+        'INTERPOSITION',
+        'ADVANCED',
+        'WITH_CERTIFICATE'
+    ]),
+    dashboardUrl: z.enum(['NONE', 'ANONYMIZED']),
+    sequence: z.enum(['PARALLEL', 'CONFIGURABLE']),
+    activatedAt: z.string().optional(),
+    completedAt: z.string().optional(),
+    objectiveId: z.string().optional(),
+    deadline: z.string(),
+    closeCondition: z.enum(['ALL_REQUIRED', 'PARTIAL_ALLOWED']),
+    signatoryStats: z.object({
+        total: z.number(),
+        bounced: z.number(),
+        valid: z.number()
+    }),
+    observerStats: z.object({
+        total: z.number(),
+        bounced: z.number(),
+        valid: z.number()
+    }),
+    validatorStats: z.object({
+        total: z.number(),
+        bounced: z.number(),
+        assignedToSignatories: z.number(),
+        assignedToDocuments: z.number(),
+        valid: z.number()
+    }),
+    caseFile: z.object({
+        id: z.string(),
+        useCaseId: z.string(),
+        name: z.string(),
+        code: z.string(),
+        ownerId: z.string()
+    }),
+    owner: z.object({
+        id: z.string(),
+        firstName: z.string(),
+        lastName: z.string(),
+        role: z.string()
+    }),
+    createdBy: z.object({
+        id: z.string(),
+        firstName: z.string(),
+        lastName: z.string(),
+        role: z.string()
+    }).optional()
+});
+
+export const zUpdateSignatureRequestControllerRunBody = z.object({
+    name: z.string().max(64).optional(),
+    language: z.enum(['en_GB', 'es_ES']).optional(),
+    deadline: z.string().optional(),
+    dashboardUrl: z.enum(['NONE', 'ANONYMIZED']).optional(),
+    objectiveId: z.uuid().optional()
+});
+
+export const zUpdateSignatureRequestControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string()
+});
+
+export const zDraftSignatureRequestControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string()
+});
+
+export const zDuplicateSignatureRequestControllerRunBody = z.object({
+    caseFileId: z.uuid().optional(),
+    id: z.uuid(),
+    name: z.string().max(64),
+    deadline: z.string()
+});
+
+export const zDuplicateSignatureRequestControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string()
+});
+
+export const zListSignatoryValidatorsFromDocumentControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string(),
+    signatoryId: z.string()
+});
+
+export const zListSignatoryValidatorsFromDocumentControllerRunQuery = z.object({
+    page: z.object({
+        number: z.number().gte(1).default(1),
+        size: z.number().gte(0).lte(100).default(20)
+    }).optional()
+});
+
+export const zListSignatoryValidatorsFromDocumentControllerRunResponse = z.object({
+    data: z.array(z.object({
+        id: z.string(),
+        email: z.string(),
+        firstName: z.string(),
+        lastName: z.string(),
+        status: z.enum([
+            'PENDING',
+            'READY_TO_VALIDATE',
+            'VALIDATED',
+            'REJECTED'
+        ])
+    })).optional(),
+    meta: z.object({
+        totalElements: z.number().optional()
+    }).optional()
+});
+
+export const zLinkSignatoryValidatorsToDocumentControllerRunBody = z.object({
+    validatorIds: z.array(z.uuid()).max(100)
+});
+
+export const zLinkSignatoryValidatorsToDocumentControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string(),
+    signatoryId: z.string()
+});
+
+export const zListDocumentObserversControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string()
+});
+
+export const zListDocumentObserversControllerRunQuery = z.object({
+    page: z.object({
+        number: z.number().gte(1).default(1),
+        size: z.number().gte(0).lte(100).default(20)
+    }).optional()
+});
+
+export const zListDocumentObserversControllerRunResponse = z.object({
+    data: z.array(z.object({
+        id: z.string(),
+        email: z.string(),
+        firstName: z.string(),
+        lastName: z.string()
+    })).optional(),
+    meta: z.object({
+        totalElements: z.number().optional()
+    }).optional()
+});
+
+export const zListDocumentSignatoriesControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string()
+});
+
+export const zListDocumentSignatoriesControllerRunQuery = z.object({
+    page: z.object({
+        number: z.number().gte(1).default(1),
+        size: z.number().gte(0).lte(100).default(20)
+    }).optional()
+});
+
+export const zListDocumentSignatoriesControllerRunResponse = z.object({
+    data: z.array(z.object({
+        id: z.string(),
+        groupId: z.string().optional(),
+        email: z.string(),
+        firstName: z.string(),
+        lastName: z.string(),
+        status: z.enum([
+            'PENDING',
+            'READY_TO_SIGN',
+            'VALIDATING',
+            'SIGNED',
+            'REJECTED'
+        ]),
+        coordinates: z.array(z.object({
+            page: z.number(),
+            x: z.number(),
+            y: z.number()
+        })),
+        uniqueValidator: z.boolean(),
+        sendWaUrl: z.boolean(),
+        sendSmsUrl: z.boolean(),
+        phoneNumber: z.string().optional(),
+        phonePrefix: z.string().optional(),
+        participantStats: z.object({
+            validators: z.number()
+        })
+    })).optional(),
+    meta: z.object({
+        totalElements: z.number().optional()
+    }).optional()
+});
+
+export const zListSignatoryDocumentsControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    signatoryId: z.string()
+});
+
+export const zListSignatoryDocumentsControllerRunQuery = z.object({
+    filter: z.object({
+        id: z.string().optional()
+    }).optional(),
+    order: z.object({
+        createdAt: z.enum(['ASC', 'DESC']).optional()
+    }).optional(),
+    page: z.object({
+        number: z.number().gte(1).default(1),
+        size: z.number().gte(0).lte(100).default(20)
+    }).optional()
+});
+
+export const zListSignatoryDocumentsControllerRunResponse = z.object({
+    data: z.array(z.object({
+        id: z.string(),
+        fileName: z.string(),
+        fileSize: z.number().optional(),
+        status: z.enum([
+            'PENDING',
+            'READY_TO_SIGN',
+            'SIGNED',
+            'REJECTED'
+        ])
+    })).optional(),
+    meta: z.object({
+        totalElements: z.number().optional()
+    }).optional()
+});
+
+export const zListSignatoryValidatorsFromDocumentWithLinkedFlagControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string(),
+    signatoryId: z.string()
+});
+
+export const zListSignatoryValidatorsFromDocumentWithLinkedFlagControllerRunQuery = z.object({
+    filter: z.object({
+        search: z.string().optional()
+    }).optional(),
+    page: z.object({
+        number: z.number().gte(1).default(1),
+        size: z.number().gte(0).lte(100).default(20)
+    }).optional()
+});
+
+export const zListSignatoryValidatorsFromDocumentWithLinkedFlagControllerRunResponse = z.object({
+    data: z.array(z.object({
+        id: z.string(),
+        requestId: z.string(),
+        documentId: z.string(),
+        signatoryId: z.string(),
+        firstName: z.string(),
+        lastName: z.string(),
+        email: z.string(),
+        isLinked: z.boolean()
+    })).optional(),
+    meta: z.object({
+        totalElements: z.number().optional()
+    }).optional()
+});
+
+export const zListSignatoryValidatorsWithLinkedFlagControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    signatoryId: z.string()
+});
+
+export const zListSignatoryValidatorsWithLinkedFlagControllerRunQuery = z.object({
+    filter: z.object({
+        search: z.string().optional()
+    }).optional(),
+    page: z.object({
+        number: z.number().gte(1).default(1),
+        size: z.number().gte(0).lte(100).default(20)
+    }).optional()
+});
+
+export const zListSignatoryValidatorsWithLinkedFlagControllerRunResponse = z.object({
+    data: z.array(z.object({
+        id: z.string(),
+        requestId: z.string(),
+        firstName: z.string(),
+        lastName: z.string(),
+        email: z.string(),
+        isLinked: z.boolean()
+    })).optional(),
+    meta: z.object({
+        totalElements: z.number().optional()
+    }).optional()
+});
+
+export const zListSignatureParticipantsWithLinkedFlagControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string()
+});
+
+export const zListSignatureParticipantsWithLinkedFlagControllerRunQuery = z.object({
+    filter: z.object({
+        role: z.enum([
+            'SIGNATORY',
+            'OBSERVER',
+            'VALIDATOR'
+        ]).optional(),
+        search: z.string().optional()
+    }).optional(),
+    page: z.object({
+        number: z.number().gte(1).default(1),
+        size: z.number().gte(0).lte(100).default(20)
+    }).optional()
+});
+
+export const zListSignatureParticipantsWithLinkedFlagControllerRunResponse = z.object({
+    data: z.array(z.object({
+        id: z.string(),
+        requestId: z.string(),
+        role: z.enum([
+            'SIGNATORY',
+            'OBSERVER',
+            'VALIDATOR'
+        ]),
+        firstName: z.string(),
+        lastName: z.string(),
+        email: z.string(),
+        createdAt: z.string(),
+        isLinked: z.boolean()
+    })).optional(),
+    meta: z.object({
+        totalElements: z.number().optional()
+    }).optional()
+});
+
+export const zListSignatureRequestsByUserControllerRunPath = z.object({
+    userId: z.string()
+});
+
+export const zListSignatureRequestsByUserControllerRunQuery = z.object({
+    filter: z.object({
+        search: z.string().optional(),
+        status: z.enum([
+            'CREATING',
+            'DRAFT',
+            'ACTIVE',
+            'PARTIALLY_SIGNED',
+            'FULLY_SIGNED',
+            'CANCELLED',
+            'COMPLETED',
+            'REJECTED',
+            'CLOSING',
+            'COMPLETED_MANUAL'
+        ]).optional(),
+        statuses: z.array(z.enum([
+            'CREATING',
+            'DRAFT',
+            'ACTIVE',
+            'PARTIALLY_SIGNED',
+            'FULLY_SIGNED',
+            'CANCELLED',
+            'COMPLETED',
+            'REJECTED',
+            'CLOSING',
+            'COMPLETED_MANUAL'
+        ])).optional(),
+        createdFrom: z.string().optional(),
+        createdUntil: z.string().optional(),
+        id: z.string().optional(),
+        caseFileIds: z.array(z.uuid()).optional()
+    }).optional(),
+    order: z.object({
+        createdAt: z.enum(['ASC', 'DESC']).optional()
+    }).optional(),
+    page: z.object({
+        number: z.number().gte(1).default(1),
+        size: z.number().gte(0).lte(100).default(20)
+    }).optional()
+});
+
+export const zListSignatureRequestsByUserControllerRunResponse = z.object({
+    data: z.array(z.object({
+        caseFileId: z.string(),
+        id: z.string(),
+        code: z.string(),
+        name: z.string(),
+        language: z.string(),
+        status: z.enum([
+            'CREATING',
+            'DRAFT',
+            'ACTIVE',
+            'PARTIALLY_SIGNED',
+            'FULLY_SIGNED',
+            'CANCELLED',
+            'COMPLETED',
+            'REJECTED',
+            'CLOSING',
+            'COMPLETED_MANUAL'
+        ]),
+        createdAt: z.string(),
+        activatedAt: z.string().optional(),
+        completedAt: z.string().optional(),
+        closeCondition: z.enum(['ALL_REQUIRED', 'PARTIAL_ALLOWED']),
+        caseFile: z.object({
+            id: z.string(),
+            useCaseId: z.string(),
+            name: z.string(),
+            code: z.string()
+        }),
+        owner: z.object({
+            id: z.string(),
+            firstName: z.string(),
+            lastName: z.string(),
+            role: z.string()
+        }),
+        createdBy: z.object({
+            id: z.string(),
+            firstName: z.string(),
+            lastName: z.string(),
+            role: z.string()
+        }).optional()
+    })).optional(),
+    meta: z.object({
+        totalElements: z.number().optional()
+    }).optional()
+});
+
+export const zProcessSignatureDocumentObserversCallbackControllerRunBody = z.object({
+    operationType: z.string(),
+    data: z.object({
+        signatureRequestId: z.string(),
+        email: z.string(),
+        notification: z.object({
+            status: z.enum(['BOUNCED'])
+        })
+    })
+});
+
+export const zProcessSignatureDocumentObserversCallbackControllerRunResponse = z.void();
+
+export const zProcessSignatureDocumentSignatoriesCallbackControllerRunBody = z.object({
+    operationType: z.string(),
+    data: z.object({
+        signatureRequestId: z.string(),
+        email: z.string(),
+        notification: z.object({
+            status: z.enum(['BOUNCED'])
+        })
+    })
+});
+
+export const zProcessSignatureDocumentSignatoriesCallbackControllerRunResponse = z.void();
+
+export const zProcessSignatureDocumentValidatorsCallbackControllerRunBody = z.object({
+    operationType: z.string(),
+    data: z.object({
+        signatureRequestId: z.string(),
+        email: z.string(),
+        notification: z.object({
+            status: z.enum(['BOUNCED'])
+        })
+    })
+});
+
+export const zProcessSignatureDocumentValidatorsCallbackControllerRunResponse = z.void();
+
+export const zProcessSignatureDocumentsCallbackControllerRunBody = z.object({
+    operationType: z.string(),
+    data: z.object({
+        signatureRequestId: z.string(),
+        documentId: z.string(),
+        status: z.string()
+    })
+});
+
+export const zProcessSignatureDocumentsCallbackControllerRunResponse = z.void();
+
+export const zProcessSignatureRequestsCallbackControllerRunBody = z.object({
+    operationType: z.string(),
+    data: z.object({
+        signatureRequestId: z.string(),
+        status: z.string()
+    })
+});
+
+export const zProcessSignatureRequestsCallbackControllerRunResponse = z.void();
+
+export const zResendSignatureRequestControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string()
+});
+
+export const zShowSignatureDocumentConvertedDownloadUrlControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string()
+});
+
+export const zShowSignatureDocumentConvertedDownloadUrlControllerRunResponse = z.object({
+    convertedDownloadUrl: z.string()
+});
+
+export const zShowSignatureDocumentDownloadUrlControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string()
+});
+
+export const zShowSignatureDocumentDownloadUrlControllerRunResponse = z.object({
+    downloadUrl: z.string()
+});
+
+export const zUnlinkSignatoryValidatorFromDocumentControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string(),
+    signatoryId: z.string(),
+    validatorId: z.string()
+});
+
+export const zUpdateDocumentSignatoryControllerRunBody = z.object({
+    groupId: z.string().optional(),
+    uniqueValidator: z.boolean().optional()
+});
+
+export const zUpdateDocumentSignatoryControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string(),
+    signatoryId: z.string()
+});
+
+export const zUpdateSignatureCoordinatesControllerRunBody = z.object({
+    coordinates: z.array(z.object({
+        page: z.number(),
+        x: z.number(),
+        y: z.number()
+    }))
+});
+
+export const zUpdateSignatureCoordinatesControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string(),
+    documentId: z.string(),
+    signatoryId: z.string()
+});
+
+export const zUpdateSignatureRequestCaseFileIdControllerRunBody = z.object({
+    caseFileId: z.uuid()
+});
+
+export const zUpdateSignatureRequestCaseFileIdControllerRunPath = z.object({
+    caseFileId: z.string(),
+    requestId: z.string()
+});
+
 export const zListUsersControllerRunPath = z.object({
     companyId: z.string()
 });
@@ -2831,9 +4035,10 @@ export const zShowProfileControllerRunResponse = z.object({
     lastName: z.string(),
     confirmedAt: z.string().optional(),
     companyId: z.string(),
+    companyName: z.string().optional(),
     companyVerified: z.boolean(),
     companyCorporate: z.boolean(),
-    companyName: z.string().optional(),
+    companyExternalIdentity: z.boolean(),
     defaultCaseFileId: z.string().optional(),
     language: z.string(),
     onboardingShown: z.boolean(),

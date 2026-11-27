@@ -1,13 +1,13 @@
 ---
 name: gocertius-suite-api
-version: 1.0.1
-updated: 2026-09-04
-description: 'Integration guide for the GoCertius / EAD Enterprise Suite REST API (one shared spec, two deployments). Covers authentication (long-lived user keys — the recommended flow — and password sessions), the case-file resource model, and the exact ordered call sequences for evidence capture, dossier certification, e-signature (advanced/interposition) incl. downloading the signed document + completion certificate, certified notifications (email/WhatsApp) incl. delivery certificates, and certified chats — plus enums, options, and known gotchas. Use when writing or debugging any code that talks to this API directly. For EAD Factory (gcloudfactory.com), use the ead-factory-api skill instead.'
+version: 1.1.0
+updated: 2026-11-26
+description: 'Integration guide for the GoCertius / EAD Enterprise Suite REST API (one shared spec, two deployments). Covers authentication (long-lived user keys — the recommended flow — and password sessions), the case-file resource model incl. case-file update, and the exact ordered call sequences for evidence capture (incl. resumable large-file uploads on EAD Enterprise Suite, and evidence / evidence-group maintenance), dossier certification, e-signature (simple (interposition), advanced and with certificate; both deployments) incl. downloading the signed document + completion certificate, certified notifications (email/WhatsApp) incl. delivery certificates, and certified chats (incl. listing chats, messages and participants) — plus enums, options, and known gotchas. Use when writing or debugging any code that talks to this API directly.'
 ---
 
 # GoCertius / EAD Enterprise Suite — API Integration Guide
 
-> **Skill version 1.0.1 — updated 2026-09-04.** See the [Changelog](#changelog) at the end. Authentication facts about the REST API are stated as of 2026-07-18; the user-key endpoints are being promoted to production (see §1). The 2026-09-04 revision only adds the MCP-server/n8n note in §1 — no REST behaviour changed.
+> **Skill version 1.1.0 — updated 2026-11-26.** See the [Changelog](#changelog) at the end. Authentication facts about the REST API are stated as of 2026-07-18; the user-key endpoints are being promoted to production (see §1). The 2026-11-26 revision adds e-signature on GoCertius, case-file update, large-file uploads, evidence and evidence-group maintenance, and chat listing.
 
 GoCertius and EAD Enterprise Suite are the **same API** behind two deployments. They share one OpenAPI contract and differ only in base URL and **which products each deployment has enabled**. Everything in this guide applies to both, but check the product table below before calling an endpoint — a resource that isn't enabled on your deployment won't work.
 
@@ -23,10 +23,11 @@ GoCertius and EAD Enterprise Suite are the **same API** behind two deployments. 
 | Evidence capture | ✅ | ✅ |
 | Dossiers (evidence certificates) | ✅ | ✅ |
 | Certified notifications | ✅ | ✅ |
+| **E-signature** | ✅ | ✅ |
 | **Chats** (certified conversations) | ✅ | ❌ |
-| **E-signature** | ❌ *(planned)* | ✅ |
+| **Large evidence uploads** (resumable, §3) | ❌ | ✅ |
 
-Both deployments do evidence + dossiers + notifications. **Chats are GoCertius-only.** **E-signature is EAD-Enterprise-only** — it is not yet in GoCertius (expected in a few months). The dossier **templates also differ** (see §4): GoCertius ships one standard template; EAD Enterprise exposes editable templates.
+Both deployments do evidence + dossiers + notifications + e-signature. **Chats are GoCertius-only.** **Large (resumable, multipart) evidence uploads are EAD-Enterprise-only:** `GET /settings` → `featureFlags.largeEvidenceUploads` is on in EAD Enterprise Suite and off in GoCertius, and every large-upload endpoint is refused while it is off. The dossier **templates also differ** (see §4): GoCertius ships one standard template; EAD Enterprise exposes editable templates. So does **evidence embedding** in the dossier certificate (§4).
 
 > Fetch the live OpenAPI JSON from the `/apidoc/` Swagger UI on your base host to resolve exact field-level schemas. This guide gives you the flows, options, and traps that the raw spec does *not* make obvious.
 >
@@ -187,11 +188,13 @@ graph TD
 
 **Every operation needs a `caseFileId`.** You don't have to *create* one each time — you need to **declare which case file the work belongs to**. Either reuse/look up an existing one or create a new one:
 ```
-GET  /case-files                     # search/list case files (paginated — see pagination note in §3)
-GET  /users/{userId}/case-files      # case files owned by a user
+GET  /users/{userId}/case-files      # search/list a user's case files (paginated — see pagination note in §3)
 POST /case-files   { "id": <uuid>, "name", "useCaseId": <uuid>, "reference"?, "description"? }   # create
+PUT  /case-files/{caseFileId}   { "status"?, "name"?, "reference"?, "description"? }          # update → 204
 ```
 `useCaseId` is required on create and tenant-specific — list the ones your account can use via `GET /use-cases` → `{ data:[ { id, code, translations:[{name,language}] } ], meta }` (tested). Each use-case has a `code` (e.g. `PR` = "Personal"). ⚠️ The `PR`/personal use-case allows only **one** case file per account — a second create returns `422 { useCaseId:[personalCaseFileAlreadyExists] }`; use a general use-case for programmatic creation. `id` is a **client-generated UUID** (see idempotency below).
+
+**Updating a case file.** `PUT /case-files/{caseFileId}` takes `status` (`OPEN` or `CLOSED`), `name`, `reference` (≤ 32 chars) and `description`, all optional, and answers `204` with no body — read it back with `GET /case-files/{caseFileId}`. It needs the editor role or higher on the case file, and the personal case file is refused (`403`). Every case file is created `OPEN`. While it is `CLOSED`, `POST /evidence-groups` and `POST /evidences` are refused with `409 { "code": "CaseFileStatusNotOpen", … }` until it is set back to `OPEN`; the large-upload create (§3) does not check it.
 
 ### Three conventions that apply everywhere
 
@@ -231,7 +234,7 @@ Evidence lives in a **group** (a batch sharing a capture type). Flow:
 5. POST /case-files/{caseFileId}/evidence-groups/{evidenceGroupId}/close
       { "evidencesCount":<n>, ...device/location? }
 ```
-Closing seals the group (`evidencesCount` must match what you added). Device and geolocation fields on `close` are optional context that strengthens the evidential value. Processing is async — poll `GET .../evidences/{id}` until `status` is `COMPLETED` (bounded polling per §2.3: every ~5 s, max ~12 attempts).
+Closing seals the group: OPEN → CLOSING → CLOSED (`evidencesCount` = the number of evidences in it). Device and geolocation fields on `close` are optional context that strengthens the evidential value. Processing is async — poll `GET .../evidences/{id}` until `status` is `COMPLETED` (its file is processed) and the group until it is `CLOSED` (bounded polling per §2.3: every ~5 s, max ~12 attempts).
 
 | Option | Field | Values |
 |---|---|---|
@@ -240,17 +243,7 @@ Closing seals the group (`evidencesCount` must match what you added). Device and
 
 > 🔒 **`PHOTO`, `VIDEO`, and `WEB_PLUGIN` are secured capture types — a plain API integration cannot use them.** They represent captures taken *inside* the official GoCertius/Suite mobile apps or browser extension, and the API only accepts them with a valid device/app **`attestation`**. The `attestation` object (on `POST .../evidence-groups` and on `close`) is `{ "provider":"AppAttest"|"PlayIntegrity", "app":"App"|"AppPro", "token", "keyId", "assertion" }` — an Apple **App Attest** or Google **Play Integrity** token that can only be produced by the genuine signed app (also registered via `POST /app-attest/attestations`). It cannot be forged by a third-party integration, so a create/close for `PHOTO`/`VIDEO`/`WEB_PLUGIN` **is rejected without the matching attestation**. **For a server-to-server integration, use `evidenceType: "FILE"`** — it needs no attestation.
 
-> **Large files (resumable multipart):** for multi-GB uploads use the resumable path instead of the single upload-url flow:
-> ```
-> 1. POST .../evidence-groups/{grp}/large-evidence-uploads
->       { "id":<uuid>, "evidenceId":<uuid>, "totalSizeMB", "title", "fileName", "capturedAt" }   ← NO hash
-> 2. GET  .../large-evidence-uploads/{id}/pending-offsets            → [ { "id", "offset" }, … ]
-> 3. per chunk:  GET  .../pending-offsets/{offsetId}/upload-url      → presigned url
->                PUT  <url>  (the chunk bytes)
->                PUT  .../pending-offsets/{offsetId}/uploaded        (no body — marks the chunk done)
-> 4. repeat until pending-offsets is empty
-> ```
-> ⚠️ **Do NOT compute or send a sha-256 for the large-file path.** Unlike the simple `upload-url` flow (§2), the multipart path takes **no `hash` and no `x-amz-checksum-sha256`** — GoCertius/Suite computes the sha-256 **server-side, after all chunks are uploaded and the file is recomposed**. You only supply `totalSizeMB` and upload chunks by offset. Prefer the simple upload-url flow for normal-sized files.
+> **Large files:** for multi-GB uploads on EAD Enterprise Suite, use the resumable multipart path — see [Large files](#large-files-resumable-multipart--ead-enterprise-suite-only) below.
 
 ### Tested end-to-end walkthrough (curl)
 
@@ -287,7 +280,7 @@ curl -s -X PUT -T file.txt -H "x-amz-checksum-sha256: $B64" "$URL"
 curl -s -X POST "$BASE/case-files/$CF/evidence-groups/$GRP/close" \
   -H "Authorization: Bearer $JWT" -H "Content-Type: application/json" -d '{"evidencesCount":1}'
 
-# 7) poll until sealed → { "status": "COMPLETED", ... }.  Bounded: sleep 5s, stop after ~12 tries.
+# 7) poll the evidence until processed → { "status": "COMPLETED", ... }.  Bounded: sleep 5s, stop after ~12 tries.
 curl -s "$BASE/case-files/$CF/evidence-groups/$GRP/evidences/$EV" -H "Authorization: Bearer $JWT" | jq .status
 ```
 
@@ -323,11 +316,63 @@ async function uploadEvidenceFile(opts: {
 }
 ```
 
+### Large files (resumable multipart) — EAD Enterprise Suite only
+
+For files too big for one presigned `PUT`. Refused on GoCertius (`featureFlags.largeEvidenceUploads` is off there). Read the limits first: `GET /settings` → `largeEvidenceChunkSizeMB` (the chunk size; 1000 on EAD Enterprise Suite production) and `maxLargeEvidenceSizeMB` (the cap; 125000 MB on EAD Enterprise Suite, a platform setting — see the unit note below). *(Spec- and source-derived; not yet exercised end to end against the live API.)*
+
+```
+G = /case-files/{caseFileId}/evidence-groups/{evidenceGroupId}
+
+1. POST G/large-evidence-uploads
+      { "id":<uuid>, "evidenceId":<uuid>, "totalSizeMB", "title", "fileName", "capturedAt":<ISO> }
+      → 201, no body                                                      ← NO hash
+2. GET  G/large-evidence-uploads/{id}/pending-offsets?count=<n>
+      → { "data":[ { "id", "largeEvidenceUploadId", "offset" } ], "meta":{ "totalElements" } }
+3. for each pending offset:
+      GET G/large-evidence-uploads/{id}/pending-offsets/{offsetId}/upload-url   → { "url" }
+      PUT <url>   (that chunk's bytes, with Content-Length — no chunked transfer encoding)
+      PUT G/large-evidence-uploads/{id}/pending-offsets/{offsetId}/uploaded     (no body) → 204
+4. repeat 2–3 until no offset is pending. After the last chunk the platform completes the file
+   and finishes the evidence by itself, asynchronously.
+5. wait until GET G/evidences/{evidenceId} returns the evidence, then close the group
+   (POST /case-files/{caseFileId}/evidence-groups/{evidenceGroupId}/close, as above).
+```
+
+- **`totalSizeMB`**: a number ≥ 1 with up to 6 decimals. Above `maxLargeEvidenceSizeMB` the create is refused (validation error) before anything exists.
+- **`offset`** is the chunk index from 0: chunk `offset` starts at byte `offset × chunk size` and is one chunk long (the last one shorter). `pending-offsets` returns the offsets still pending **and creates new ones** up to `count` (a required integer). Whether "MB" means 10⁶ or 2²⁰ bytes is not confirmed: use the same unit for `totalSizeMB` and the chunk length, and the chunks always cover the file — only the comparison with the cap depends on the convention.
+- **Only the group's creator can upload.** Pending offsets, upload URLs, marking chunks, cancelling and the close request all require the identity that created the evidence group; the create itself only needs collaborator or higher on the case file, so a non-creator's create succeeds and every chunk call after it is refused. Upload into a group you created.
+- **Progress:** `GET G/evidences/{evidenceId}/large-upload` → `{ id, evidenceId, fileName, chunkSizeMB, totalSizeMB, biggestUploadedOffset }`; `GET G/large-evidence-uploads` lists the group's uploads. The platform deletes the upload record when it finishes the evidence, so `large-upload` answers `404` from then on (and after a cancel).
+- **Cancel:** `DELETE G/large-evidence-uploads/{id}` — the **upload** id, not the evidence id → `204`. It discards the pending chunks, aborts the file upload and removes the upload. Irreversible. `409` if the evidence is already linked to a dossier; `404` once the platform has finished the evidence.
+- **Close request:** `POST G/close-request { "id":<uuid>, "userAgent"? }` → `201` files a request to close the **whole group**. The platform acts on it when a large upload in the group next ends (finishes, is cancelled, or has its evidence deleted), and closes the group if it holds at least one evidence. Use it only while another large upload in the group is still running: with none running it stays pending and closes the group later, unasked. Closing is irreversible. With nothing else running, close with `POST .../close` instead.
+
+> ⚠️ **Do NOT compute or send a sha-256 for the large-file path.** Unlike the simple `upload-url` flow (§2), the multipart path takes **no `hash` and no `x-amz-checksum-sha256`** — the platform computes the sha-256 **server-side, after all chunks are uploaded and the file is recomposed**. You only supply `totalSizeMB` and upload chunks by offset. Prefer the simple upload-url flow for normal-sized files.
+
+### Maintaining evidences and groups
+
+```
+E = /case-files/{caseFileId}/evidence-groups
+
+GET    E/{id}                                     → { id, code, name, description, type, status, evidenceStats, createdBy, createdAt, … }
+PUT    E/{id}                                     { "name", "description"? }  → 204   (name required, ≤ 64; description ≤ 160)
+DELETE E/{id}                                     → 204   discard the group (irreversible)
+PUT    E/{evidenceGroupId}/evidences/{id}         { "title"?, "relevant"? }   → 204   (title ≤ 128)
+DELETE E/{evidenceGroupId}/evidences/{id}         → 204   logical delete (irreversible)
+GET    E/{evidenceGroupId}/evidences/{id}/download-url   → { "downloadFileUrl" }
+```
+
+- **Group `status`:** `OPEN` → `CLOSING` → `CLOSED` (sealed).
+- **Discarding a group** is refused when it is `CLOSING` or already discarded; when it is `OPEN` and any of its evidences is `COMPLETED`; and when it is `CLOSED` and holds no evidence or any evidence other than capture-metadata records. In practice neither a sealed group with real evidence nor an empty sealed group can be deleted. When it succeeds, its evidences go with it.
+- **Deleting an evidence** is allowed only when it is `COMPLETED`, still waiting for its file (`INTERNAL` custody, bytes not uploaded), or a required timestamp ended in `ERROR`; it is refused while the evidence is being processed and when it is under, or entering, qualified archiving.
+- **`relevant`:** evidences created through `POST /evidences` or the large-file path start with `relevant: true`. An express dossier (§4) sent without `evidenceIds` links only the group's relevant evidences, and `evidences-to-link` can filter on it — set `relevant: false` to leave an evidence out.
+- **`download-url`** requires the evidence to belong to the case file in the path.
+
+*(The discard and delete rules are read from the platform's evidence-manager source, not exercised live.)*
+
 ---
 
 ## 4. Dossiers (evidence certificates)
 
-A **dossier** ("certificado de evidencia") binds one or more sealed evidences into a certified, timestamped PDF report built from a **template model**, optionally protected by a password and published on a public page. This is the richest workflow in the API.
+A **dossier** ("certificado de evidencia") binds one or more evidences into a certified, timestamped PDF report built from a **template model**, optionally protected by a password and published on a public page. This is the richest workflow in the API.
 
 ### Step 0 — check the template is enabled (and read its fields)
 
@@ -361,33 +406,35 @@ sequenceDiagram
       { "id":<uuid>, "modelId", "name", "language":"es_ES",
         "validityFrom", "validityTo",
         "filledFields": { "<attribute>": "<value>", … },   # required iff the model declares fields
-        "accessToken": "<password>" }                       # optional public-page password
-2. GET  .../dossiers/{dossierId}/case-files-to-link/{caseFileId}/evidences-to-link   # candidate sealed evidences
+        "accessToken": "<password>",                        # optional public-page password
+        "embeddedEvidences": false }                        # optional — see Options & rules
+2. GET  .../dossiers/{dossierId}/case-files-to-link/{caseFileId}/evidences-to-link   # candidate COMPLETED evidences (any group status)
    POST .../dossiers/{dossierId}/case-files-to-link/{caseFileId}/link-evidences  { "ids":[ <evidenceId>, … ] }
 3. GET  .../dossiers/{dossierId}/report-preview     # OPTIONAL — returns { "reportPreview": "<!DOCTYPE html>…" } to sanity-check before issuing
-4. PUT  .../dossiers/{dossierId}/certify            # async → poll GET .../dossiers/{dossierId} until status CERTIFIED (bounded — see §2.3)
+4. PUT  .../dossiers/{dossierId}/certify            # async → poll GET .../dossiers/{dossierId} until status CERTIFIED, or back to DRAFT = failed (bounded — see §2.3)
 5. GET  .../dossiers/{dossierId}/document-url       → { "url" }  the certified PDF
    GET  .../dossiers/{dossierId}/package-url        → { "url" }  full package (PDF + evidence files, ZIP)
 ```
 
 **Options & rules (tested):**
-- **Evidences must be sealed first.** Only evidences whose group is `CLOSED`/`COMPLETED` appear in `evidences-to-link`; the `ids` you link are the evidence ids. You can call `link-evidences` multiple times (even across case files — vary `caseFileToLinkId`).
+- **Seal the group first — advised, not required by the API.** `evidences-to-link` returns the `COMPLETED` evidences that are not capture-metadata records, whatever their group's status (an evidence can be `COMPLETED` while its group is still `OPEN`), and also those already linked, flagged `linked`. `link-evidences` checks only that the ids belong to the case file; the `ids` you link are the evidence ids. You can call `link-evidences` multiple times (even across case files — vary `caseFileToLinkId`). *(The group-status and linking rules are read from the platform's source, not exercised live.)*
 - **`filledFields`** must supply every field the model declares (`422 { filledFields.<attr>:[isNotEmpty] }` otherwise). Omit entirely for fieldless models.
 - **`accessToken`** (the public-page password) is optional but **pattern-validated**: **min 8 chars, and must contain upper + lower + digit** (e.g. `Abcd1234`). Digits-only, letters-only, or missing a class → `422 { accessToken:[matches] / [minLength] }`.
 - **`validityFrom`/`validityTo`** define the availability window of the public page.
 - **`report-preview`** returns a full HTML document under `reportPreview` — render it to verify layout/fields before the irreversible `certify`. Purely optional.
-- **`certify` is async**: `DRAFT → CERTIFYING → CERTIFIED` (~10 s). Poll per §2.3 (every ~5 s, max ~12 tries); download URLs only work once `CERTIFIED`.
+- **`certify` is async**: `DRAFT → CERTIFYING → CERTIFIED` (~10 s), or back to `DRAFT` if certification fails. Poll per §2.3 (every ~5 s, max ~12 tries); download URLs only work once `CERTIFIED`. `certify` answers `409` when no evidence is linked, when any linked evidence is not `COMPLETED`, or when there are more than the platform's maximum. *(The `409` cases and the return to `DRAFT` are read from the platform's source, not exercised live.)*
 - **Edits** (`PUT .../dossiers/{id}`) are allowed only while `DRAFT`.
+- **`embeddedEvidences`** (optional, default `false`): `true` embeds the evidence files linked to the dossier as attachments inside the certificate PDF. **GoCertius does not offer evidence embedding:** there, create always stores `false`, whatever is sent — leave the field unset on GoCertius.
 
 ### Express (create + certify in one call)
 
 ```
 POST /case-files/{caseFileId}/evidence-groups/{evidenceGroupId}/dossier-express
-     { "id":<uuid>, "modelId"?, "evidenceIds":[…], "name", "language" }   → dossier goes straight to CERTIFYING
+     { "id":<uuid>, "modelId"?, "evidenceIds"?:[…], "name", "language" }   → dossier goes straight to CERTIFYING
 ```
-Express skips the link/preview steps. ⚠️ **The default template differs by deployment:**
-- **GoCertius** — omitting `modelId` uses the built-in **standard** template.
-- **EAD Enterprise** — there is no standard default: omitting `modelId` returns **`403 Forbidden`**. You must pass a `modelId` of an **editable** template (and its `filledFields` if it declares any). `dossier-group-certify` / `.../evidence-groups/{id}/dossier-express` are the express entry points.
+Express skips the link/preview steps. Without `evidenceIds` it links the group's **relevant** evidences — all of them unless you set `relevant: false` on some (§3, *Maintaining evidences and groups*). ⚠️ **It certifies only `COMPLETED` evidences:** any other (still processing, or an id not in the group) is left out **without an error**, and it answers `409` only when no `COMPLETED` evidence remains — wait until every evidence is `COMPLETED` before calling it. ⚠️ **The default template differs by deployment:**
+- **GoCertius** — omitting `modelId` uses the built-in **standard** template. Evidence files are never embedded.
+- **EAD Enterprise** — there is no standard default: omitting `modelId` returns **`403 Forbidden`**. You must pass a `modelId` of an **editable** template (and its `filledFields` if it declares any). The certificate embeds the evidence files as attachments. `dossier-group-certify` / `.../evidence-groups/{id}/dossier-express` are the express entry points.
 
 ### After issuing
 
@@ -402,7 +449,7 @@ Once `CERTIFIED`:
 
 ## 5. E-signature
 
-> **Deployment scope:** E-signature is **EAD Enterprise Suite only** today. It is not yet enabled on GoCertius (planned for a future release). Calling these endpoints on the GoCertius host will not work until then.
+> **Deployment scope:** E-signature is available on **both** GoCertius and EAD Enterprise Suite (`GET /settings` → `featureFlags.signatures` is on in both production deployments, checked 2026-11).
 
 This is the most stateful workflow. Build the request, attach documents (upload bytes), add people, place signatures, **then** activate. You cannot activate an incomplete request.
 
@@ -433,39 +480,54 @@ sequenceDiagram
 5. POST .../signature-requests/{requestId}/participants
       { "id", "role":"SIGNATORY", "firstName", "lastName", "email",
         "phonePrefix":"+34"?, "phoneNumber"?, "linkToAllDocuments"? }
-6. GET  .../documents/{documentId}/signatories        ← read the signatoryId assigned to each signer
-7. PUT  .../documents/{documentId}/signatories/{signatoryId}/coordinates
+   (order is free: participants created with `linkToAllDocuments` are linked to documents added before or after them)
+6. PUT  .../documents/{documentId}/signatories/{signatoryId}/coordinates   ← {signatoryId} = the participant id you minted
       { "coordinates":[ { "page":1, "x":30, "y":230 } ] }
-8. PUT  .../signature-requests/{requestId}/activate
+7. PUT  .../signature-requests/{requestId}/activate
 ```
 
 ### Options
 | Choice | Field | Values | Notes |
 |---|---|---|---|
-| Signature level | `signatureType` | `ADVANCED` · `INTERPOSITION` | `ADVANCED` = advanced e-signature. `INTERPOSITION` = the platform interposes (e.g. WhatsApp delivery of the sign link). |
+| Signature level | `signatureType` | `INTERPOSITION` · `ADVANCED` · `WITH_CERTIFICATE` | `INTERPOSITION` = simple signature by link (also by WhatsApp/SMS on request). `ADVANCED` = the signer confirms with a one-time code to their mobile (phone required). `WITH_CERTIFICATE` = the signer uses their own digital certificate (one position per signatory and document). |
 | Signing order | `sequence` | `PARALLEL` · `CONFIGURABLE` | `PARALLEL` = everyone signs at once. `CONFIGURABLE` = ordered/grouped; use `.../groups` and per-signatory sequence. |
-| Completion rule | `closeCondition` | `ALL_REQUIRED` · `PARTIAL_ALLOWED` | Whether every signer must sign for the request to close. |
+| Completion rule | `closeCondition` | `ALL_REQUIRED` · `PARTIAL_ALLOWED` | `ALL_REQUIRED`: it completes when everyone has signed. `PARTIAL_ALLOWED`: it completes once no signature is pending — a rejection does not block the others. |
 | Signer dashboard | `dashboardUrl` | `NONE` · `ANONYMIZED` | Whether signers receive an url to a co-signer dashboard. |
 | Language | `language` | `en_GB` · `es_ES` | |
 | Participant role | `role` | `SIGNATORY` · `OBSERVER` · `VALIDATOR` | Observers get read access; validators approve a signatory before they can sign (`.../signatories/{id}/validators`). |
 
 ### `convertToPdf` — only for Word documents
 
-`convertToPdf` (a boolean on the add-document call / the MCP add-document tool) has **one specific job: transform an uploaded Microsoft Word document (`.doc`/`.docx`) into a PDF** so signatures can be placed on it.
+`convertToPdf` (a boolean on the add-document call / the MCP add-document tool) has **one specific job: transform an uploaded Microsoft Word document (`.docx` — the platform refuses it for any other file name) into a PDF** so signatures can be placed on it.
 
-- **Set `convertToPdf: true` *only* when the file you upload is a Word document.** The backend converts it to PDF during document processing; the resulting PDF is what gets signed and is downloadable via `GET .../documents/{documentId}/converted-download-url` (the original Word file stays at `.../download-url`).
+- **Set `convertToPdf: true` *only* when the file you upload is a `.docx`.** The backend converts it to PDF during document processing; the resulting PDF is what gets signed and is downloadable via `GET .../documents/{documentId}/converted-download-url` (the original Word file stays at `.../download-url`).
 - **For a PDF you already have (or any non-Word file), leave it `false`/omit it** — no conversion happens; you upload the PDF bytes directly.
 - Either way, signature coordinates and `READY_TO_SIGN` apply to the PDF: with `convertToPdf`, wait for the conversion to finish (it's part of the async processing) before setting coordinates and activating.
 
+### Placing signatures
+
+1. **Which documents:** every PDF, and every `.docx` with `convertToPdf`, for every signatory linked to it.
+2. **Find the page:** extract the PDF's text page by page and look for the signature block — the signer's
+   name, "Firma", "Fdo.", "Signature", or signature lines near the end. Pages count from 1.
+3. **Position:** `{ "page", "x", "y" }`, one per signatory per document (`WITH_CERTIFICATE` signatures allow
+   exactly one). **Convention (measured live, 2026-11-26):** x and y are PDF points from the page's
+   **bottom-left** corner, and `(x, y)` is the bottom-left corner of the signature stamp, which occupies
+   x+15..x+104 by y..y+66.5. To sit it on a line starting at (lx, ly): x = lx − 15, y = ly. Keep x ≥ 45 (the
+   signed PDF adds a 42-pt band on each page's left edge), x ≤ width − 104, y ≤ height − 67; text extractors
+   measure from the top (y = height − y_top). A page the PDF lacks is not refused: a blank page is appended
+   and signed.
+
 ### Gotchas that will bite you
-- **Read `signatoryId` from the document, don't assume it.** After adding a participant, the per-document `signatoryId` used by coordinates/validators comes from `GET .../documents/{documentId}/signatories` — read it there.
-- **Coordinates are mandatory before activation.** Every signatory needs at least one `{page,x,y}` placement or `activate` fails.
+- **`signatoryId` in the coordinates path is the participant `id` you minted.** The platform resolves that person's per-document signer itself (by email); a participant not linked to the document gets `404 Signatory not found`.
+- **Coordinates are required at activation on every PDF** (and every `.docx` sent with `convertToPdf`), for every signatory linked to it, **whatever the signature type**; other files need none. Missing → `409 SignatoriesWithoutCoordinates`. The coordinates call replaces that signatory's positions on that document (safe to repeat). See *Placing signatures* above.
 - **Poll for `READY_TO_SIGN`.** Documents are processed async after upload (~30 s for small PDFs). Activating too early fails. Poll per §2.3 (every ~5 s, cap ~12 tries) — don't tight-loop.
 - **Deadline ceiling 31 days.** A `deadline` more than 31 days out is rejected. Send an ISO datetime within range.
 - **`phonePrefix` needs the `+`** (e.g. `"+34"`, not `"34"`) — otherwise the participant is flagged invalid.
-- **WhatsApp delivery only applies to `INTERPOSITION`.** It silently no-ops on `ADVANCED`.
+- **`sendWaUrl` / `sendSmsUrl` are only for `INTERPOSITION` and `WITH_CERTIFICATE` signatories with a phone** (SMS only where the platform enables it). On `ADVANCED`, or for observers/validators, the participant call is refused (422 `isInvalid`). An `INTERPOSITION` signatory with a phone gets `sendWaUrl: true` by default.
+- **Creating a request is not idempotent.** A second `POST` with the same `id` answers 500 and leaves an orphan request on the platform: check with `GET .../signature-requests/{id}` (404 = safe) before retrying.
+- **A document in `ERROR`, or never uploaded, blocks activation with an opaque 504.** A document that never receives its bytes stays `PENDING` forever; `ERROR` follows a failed hash check or a failed registration (then the add-document reply has no `url`). The same `fileName` twice in one request is refused.
 - **Document upload uses the same S3 checksum header** as evidence (§2) — `x-amz-checksum-sha256: <base64 sha-256>` on the `PUT`, or `403 SignatureDoesNotMatch`. The document must be a valid PDF for coordinate placement.
-- Manage a live request with `.../resend`, `.../cancel`, `.../close`; fetch outputs from `.../documents/{documentId}/signed-document-url` and `.../documents/{documentId}/certificates/...`.
+- Manage a live request with `.../resend` (remind pending signers), `.../cancel` (stop it) and `.../close` (finish early with what is signed → `COMPLETED_MANUAL`). Fetch outputs — `.../documents/{documentId}/signed-document-url` and `.../documents/{documentId}/certificates/...` — only once the whole request is `COMPLETED` or `COMPLETED_MANUAL` (refused before).
 
 > ✅ **Tested end-to-end** against EAD Enterprise Suite on 2026-07-02, `INTERPOSITION` type: `POST /signature-requests` (201) → `POST .../documents` (201, returns `{url}`) → `PUT` PDF with `x-amz-checksum-sha256` (200) → poll `GET .../documents` until `READY_TO_SIGN` → `POST .../participants` role `SIGNATORY` (201) → read `signatoryId` from `GET .../documents/{doc}/signatories` → `PUT .../signatories/{signatoryId}/coordinates` `{"coordinates":[{"page":1,"x":30,"y":230}]}` (200) → `PUT .../activate` (200). Final request `status: ACTIVE`; the sign link was delivered by email + WhatsApp.
 
@@ -587,10 +649,26 @@ A **chat** captures a conversation (Telegram-backed) under a case file and lets 
 ```
 - `modelId` comes from `GET /users/{userId}/chat-certificate-models`.
 - `service` currently only accepts `Telegram`.
-- ⚠️ **`chatMessagesFrom` must be ≥ the chat's `registeredAt`** (you can't request messages from before the chat existed) — otherwise `422 { chatMessagesFrom:[lessThan registeredAt] }`. Read `registeredAt` from `GET .../chats/{chatId}` and use it as the range start; `chatMessagesTo` can be "now".
-- After `certify`, poll `document-url`/the certificate status until `CERTIFIED` per §2.3 (every ~5 s, cap ~12 tries).
+- ⚠️ **`chatMessagesFrom` must be ≥ the chat's `registeredAt`** (you can't request messages from before the chat existed) — otherwise `422 { chatMessagesFrom:[lessThan registeredAt] }` — and before `chatMessagesTo`. Read `registeredAt` from `GET .../chats/{chatId}` and use it as the range start.
+- ⚠️ **A future `chatMessagesTo` is not refused:** the platform silently caps it to the current time, so messages written later are not covered. Certify a range that has already ended.
+- After `certify`, poll `document-url`/the certificate status until `CERTIFIED` per §2.3 (every ~5 s, cap ~12 tries). Status: `DRAFT → CERTIFYING → CERTIFIED`, or back to `DRAFT` if certification fails.
 
 > ✅ **Tested end-to-end** (GoCertius, 2026-07-03): create chat (201) → create certificate with `chatMessagesFrom = registeredAt` (201) → `certify` (202) → poll `document-url` (ready in ~8 s, `status: CERTIFIED`) → downloaded the certificate PDF (`application/pdf`, ~2 MB) and the package ZIP (~2 MB). `invitation-url` returns `404 "Chat not found"` until the Telegram channel is provisioned — retry once the chat has participants.
+
+### Finding an existing chat, its messages and participants
+
+To certify a conversation that already exists, list instead of creating (chats live in the personal case file — `GET /profile` → `defaultCaseFileId`, §1):
+```
+GET /case-files/{cf}/chats?filter[search]=…&filter[status]=active&order[createdAt]=DESC&page[number]=1&page[size]=20
+    → { "data":[ { id, code, status, service, title, createdAt, owner, createdBy } ], "meta":{ totalElements } }
+GET /case-files/{cf}/chats/{chatId}/messages?filter[writtenFrom]=<ISO>&filter[writtenTo]=<ISO>&order[writtenAt]=ASC&page[number]=1&page[size]=100
+    → { "data":[ { id, writtenBy, writtenAt, deleted, contentHistory, reactions, replyTo, reactTo } ], "meta" }
+GET /case-files/{cf}/chats/{chatId}/participants?filter[id]=…&page[number]=1&page[size]=20
+    → { "data":[ { id, userName, firstName, lastName, participationHistory } ], "meta" }
+```
+- Chat filters: `search` (free text), `service` (`Telegram`), `status`, `createdFrom` / `createdUntil` (creation-date range, ISO 8601), `id`. Order by `title` or `createdAt` (`ASC` or `DESC`). `page[size]` goes up to 100 (default 20) on all three.
+- Chat `status`: `creating` — just created, waiting for the messaging platform to confirm it; until then its messages, participants, invitation URL and certificates answer `404`. `active` — confirmed and usable. `inactive` — in the enum, but not set by the current platform version.
+- Pick the message range from `messages`, then create the certificate (step 4) for it, keeping the `registeredAt` rule above.
 
 ---
 
@@ -607,18 +685,19 @@ A **chat** captures a conversation (Telegram-backed) under a case file and lets 
 **Outputs:** downloadable artefacts (signed docs, certificates, packages) are always a `GET …-url` returning `{ url }` to unauthenticated object storage — `document-url`/`signed-document-url` = a PDF, `package-url` = a ZIP bundling annexes. Certificate generation is async; poll the `-url` endpoint until it returns (bounded).
 
 **Enum cheat-sheet:**
-- Evidence type: `FILE` `PHOTO` `VIDEO` `WEB_PLUGIN` · Custody: `INTERNAL` `EXTERNAL`
-- Dossier status: `DRAFT` `CERTIFYING` `CERTIFIED` · visibility: `ACCESSIBLE` `PENDING_RECALL` `RECALLED` · field type: `SimpleText` `RichText` · password `accessToken`: ≥8 chars, upper+lower+digit
-- Signature type: `ADVANCED` `INTERPOSITION` · Sequence: `PARALLEL` `CONFIGURABLE` · Close: `ALL_REQUIRED` `PARTIAL_ALLOWED` · Role: `SIGNATORY` `OBSERVER` `VALIDATOR` · Request status: `DRAFT` `ACTIVE` `COMPLETED` (doc: `READY_TO_SIGN` `SIGNED`) · deadline ≤ 31 days
+- Case file status: `OPEN` `CLOSED`
+- Evidence type: `FILE` `PHOTO` `VIDEO` `WEB_PLUGIN` · Custody: `INTERNAL` `EXTERNAL` · Evidence group status: `OPEN` `CLOSING` `CLOSED`
+- Dossier status: `DRAFT` `CERTIFYING` `CERTIFIED` (back to `DRAFT` if certification fails) · visibility: `ACCESSIBLE` `PENDING_RECALL` `RECALLED` · field type: `SimpleText` `RichText` · password `accessToken`: ≥8 chars, upper+lower+digit
+- Signature type: `INTERPOSITION` `ADVANCED` `WITH_CERTIFICATE` · Sequence: `PARALLEL` `CONFIGURABLE` · Close: `ALL_REQUIRED` `PARTIAL_ALLOWED` · Role: `SIGNATORY` `OBSERVER` `VALIDATOR` · Request status: `CREATING` `DRAFT` `ACTIVE` `PARTIALLY_SIGNED` `FULLY_SIGNED` `CANCELLED` `COMPLETED` `REJECTED` `CLOSING` `COMPLETED_MANUAL` (doc: `PENDING` `READY_TO_SIGN` `PARTIALLY_SIGNED` `SIGNED` `REJECTED` `ERROR`) · deadline ≤ 31 days
 - Notification type: `NO_RESPONSE` `ACCEPTED_OR_NOT` `RECEIVED_AGREE` · status: `CREATING` `DRAFT` `IN_PROCESS` `SENT` `PARTIALLY_READ` `FULLY_READ` `PARTIALLY_ANSWERED` `FULLY_ANSWERED` · doc: `PENDING` `READY_TO_SEND` · send via `/send` (`/activate` deprecated)
-- Chat service: `Telegram` · chat certificate status: `CERTIFIED`
+- Chat service: `Telegram` · chat status: `creating` `active` `inactive` · chat certificate status: `DRAFT` `CERTIFYING` `CERTIFIED` (back to `DRAFT` if certification fails)
 - Languages: `en_GB` `es_ES` (`pt_PT` for dossiers)
 
-**Related:** EAD Factory is a *different* product/API (host `gcloudfactory.com`, four manager specs, external bearer token) — see the `ead-factory-api` skill.
 
 ---
 
 ## Changelog
 
+- **1.1.0 — 2026-11-26.** **E-signature is on both deployments** — the product table and its paragraph now say so. This entry also records the §5 changes made earlier in this release: `WITH_CERTIFICATE`, the coordinates path takes the participant id, coordinates required on every PDF whatever the signature type, the stamp-placement convention, and new gotchas. **Corrected:** §2 lists case files with `GET /users/{userId}/case-files` instead of `GET /case-files`. Sealing a group is advised but **not required** before linking or certifying: `evidences-to-link` returns `COMPLETED` evidences whatever their group's status, and linking checks only that the ids belong to the case file (§4). The express dossier certifies only `COMPLETED` evidences, leaves any other out without an error and answers `409` only when none remains; it embeds the evidence files on EAD Enterprise Suite and never on GoCertius (§4). `certify` answers `409` with no linked evidence, a linked evidence not `COMPLETED`, or more than the platform's maximum, and a failed certification returns dossiers and chat certificates to `DRAFT` (§4, §7, §8). The chat range: `chatMessagesFrom` before `chatMessagesTo`, and a future `chatMessagesTo` capped to the current time, not refused (§7). Added: **case-file update** and what a `CLOSED` case file refuses (§2); the **large-file resumable upload** as a full flow — EAD Enterprise Suite only, with `GET /settings` limits, the creator-only rule, progress, cancel and the group close request (§3); **evidence and evidence-group maintenance** — read, update, discard/delete with their refusal rules, download URL, and `relevant` with its effect on the express dossier (§3, §4); **`embeddedEvidences`** on dossier create/update, per deployment (§4); **listing chats, messages and participants** with the chat status values (§7); fuller status enums (§8). Sources: the 2026-11-23 production OpenAPI and the platform's source. The stamp-placement convention (§5) was measured live on 2026-11-26; the other additions and corrections of this pass are not live-tested. *(Context: Epic E22 in the MCP generator.)*
 - **1.0.1 — 2026-09-04.** Annotation only; **no REST-API fact changed and no password content removed**. Records that the GoCertius / EAD Enterprise Suite **MCP servers and n8n node** stopped accepting email/password (and pre-seeded JWTs) and now take `MCP_AUTH_USER_KEY` only, while `POST /session`, the legal-texts 409 gate and `/session-with-legal-texts` remain fully supported by the API — and remain the way a user key is minted. *(Context: Epic E18 in the MCP generator, 2026-09-03. This skill documents the underlying REST API and is versioned independently of the MCP packages.)*
 - **1.0.0 — 2026-07-18.** First versioned/dated release. Authentication reworked: **user keys are now the recommended, predominant flow** (production rollout in progress) with password login kept as a fully supported alternative. Added **`GET /profile`** as the canonical way to resolve your `userId` (its `id`) on any flow — and corrected the previous guidance that read `userId` from the JWT `sub` claim, which is unreliable for user-key sessions. **Removed all OpenID access instructions** (device-code / `POST /openid/session` how-to); OpenID now appears only as a two-line note that such accounts cannot authenticate via this API. *(Context: user-key auth shipped in the MCP packages GoCertius v1.5.0 / EAD Enterprise Suite v1.6.0; this skill documents the underlying REST API and is versioned independently.)*

@@ -9,8 +9,9 @@
     "pino": "^10.0.0",
     "zod": "^4.0.0"
   },
-  "description": "MCP server for GoCertius: certified evidence, dossiers, notifications and chats via AI agents.",
+  "description": "GoCertius MCP: evidence, simple and two-factor advanced e-signature, dossiers, notifications, chats.",
   "devDependencies": {
+    "@types/node": "^22.0.0",
     "tsup": "^8.5.0",
     "typescript": "^5.5.0"
   },

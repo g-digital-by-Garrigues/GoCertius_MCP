@@ -6,7 +6,7 @@ Get from zero to your first tool call in under 5 minutes.
 
 ## Step 1 — Get your credentials
 
-Visit [https://www.gocertius.io](https://www.gocertius.io) to create an account or obtain API credentials.
+Visit [https://www.gocertius.io](https://www.gocertius.io) to request or obtain your API credentials.
 
 You will need a **user key** — a long-lived key issued in the product, exchanged automatically for a short-lived session token.
 
@@ -69,6 +69,7 @@ This package includes step-by-step guides as Claude Code slash-commands. After s
 - `/notification-lifecycle` — opens a guided workflow
 - `/notification-attachments` — opens a guided workflow
 - `/chat-lifecycle` — opens a guided workflow
+- `/signature-lifecycle` — opens a guided workflow
 
 ---
 
