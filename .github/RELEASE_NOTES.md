@@ -1,65 +1,27 @@
-# GoCertius MCP v2.1.0
+# GoCertius MCP v2.1.1
 
-GoCertius gains e-signature. 99 tools, up from 62. Nothing that works in 2.0.0 stops
-working: the one tool retired below has been refused by the platform to every
-credential this server accepts since 2.0.0.
+A fix for the n8n connector. **The MCP server is unchanged from 2.1.0**: nothing to do
+for a server deployment — Docker image, npx or any MCP client.
 
-## New: e-signature
+## Fixed in the n8n connector
 
-The same 28 signature tools as EAD Enterprise Suite: create a request, add documents,
-signatories, observers and validators, place the signature boxes, activate, follow
-progress, resend, close or cancel, and download the signed document, its certificate
-and the certificate package. `signature_request_full` does create, upload, signatories,
-placement and sending in one call, and the bundled `/signature-lifecycle` command walks
-an agent through the whole flow.
-
-Signatures need the signatures permit on your GoCertius account. Configurable signing
-sequences and validator participants also depend on your company's plan; without them
-the API answers 409.
-
-## Also new
-
-- **Evidence:** get an evidence group; update and delete evidences and evidence groups;
-  a download URL for an evidence.
-- **Case files:** `case_file_update`.
-- **Chats:** `chat_list`, `chat_message_list`, `chat_participant_list`.
-- **Dossiers:** optional `embeddedEvidences` on `dossier_create` and `dossier_update`.
-
-## Retired
-
-| Tool | Why |
-|---|---|
-| `case_file_delete` | The platform refuses it to user-key sessions, and a user key is the only credential this server can be configured with. It could not succeed on 2.0.0 either. |
-
-No tool that stays lost an input field or gained a required one.
-
-## Fixes you will notice
-
-- **Idempotency:** two calls that differed only in a nested field — a
-  `notification_send` to a different recipient within 24 h, page 2 of a list — were
-  answered from the first call's cache. They no longer are.
-- **Polling sees changes:** read-only tools no longer answer from a 60-second cache.
-- **Readable errors:** the field issues of a 400/422 reach the agent instead of
-  `[object Object]` or a bare "HTTP 422", including inside the one-call tools. A login
-  refused because the account must accept new legal texts now says that only a person
-  can do it, in the web app.
-- **`notification_certificate_get`** now sends `embeddedDocuments` (it was silently
-  dropped) and refuses an id reused with different options.
-- **Descriptions:** every tool's description in the README and in the stores is now
-  exactly what the server serves.
-
-## Configuration
-
-Nothing to change. The credential is the same as in 2.0.0 (`MCP_AUTH_USER_KEY` and
-`MCP_API_BASE_URL`, both required). `.env.example` now also documents six optional
-variables the server already read: `MCP_TRANSPORT`, `MCP_BRIDGE_STATE_FILE`,
-`MCP_FILE_MAX_BYTES`, `MCP_FILE_ALLOWED_ROOTS`, `MCP_FILE_URL_ALLOWED_HOSTS` and
-`MCP_OTEL_ENABLED`. The Docker image sets `MCP_TRANSPORT` itself — keep it out of any
-env file you pass to the container.
+Fields that take JSON — the filter, order and page of every list operation, signature
+coordinates, the evidence IDs linked to a dossier, and the bulk add of receivers or
+participants — were sent to the API as plain text when you typed the value into the
+field, and the API refused it. A value written as an expression (`{{ ... }}`) was not
+affected. From 2.1.1 a typed value is read as JSON, and a value that is not valid JSON
+stops the node with a message that names the field instead of reaching the API.
 
 ## Upgrading the n8n connector
 
 <!-- N8N_UPGRADE -->
+### From 2.1.0
+
+**Nothing to do.** JSON fields you type into the node — list filter, order and page,
+signature coordinates, the evidence IDs of a dossier, bulk receivers or participants —
+now reach the API as JSON; in 2.1.0 a typed value was refused. Values written as
+expressions keep working as before.
+
 ### From 2.0.x
 
 **Nothing to do for your credential.**

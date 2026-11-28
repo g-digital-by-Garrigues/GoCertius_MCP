@@ -142,6 +142,13 @@ This node requires a "GoCertius API" credential with the following fields:
 
 ## Upgrading
 
+### From 2.1.0
+
+**Nothing to do.** JSON fields you type into the node — list filter, order and page,
+signature coordinates, the evidence IDs of a dossier, bulk receivers or participants —
+now reach the API as JSON; in 2.1.0 a typed value was refused. Values written as
+expressions keep working as before.
+
 ### From 2.0.x
 
 **Nothing to do for your credential.**
