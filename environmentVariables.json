@@ -25,7 +25,7 @@
       "name": "MCP_ALLOWED_ORIGINS"
     },
     {
-      "description": "Upstream API root. Required: your user key is exchanged for a session token against this host, and the server will not start without it.",
+      "description": "Upstream API root. Required only when MCP_AUTH_USER_KEY is also set: your user key is exchanged for a session token against this host, and the server will not start without both. Not required for a credential-less deployment (inbound Bearer only).",
       "isRequired": true,
       "isSecret": false,
       "name": "MCP_API_BASE_URL"
@@ -35,6 +35,30 @@
       "isRequired": true,
       "isSecret": true,
       "name": "MCP_AUTH_USER_KEY"
+    },
+    {
+      "description": "Path to a file where the SSE bridge persists its state (pollable-task delivery) across restarts. Omit to disable persistence — pollable tasks still work, but in-flight SSE subscriptions are lost on restart.",
+      "isRequired": false,
+      "isSecret": false,
+      "name": "MCP_BRIDGE_STATE_FILE"
+    },
+    {
+      "description": "Comma-separated absolute directory paths. When set, a local \"path\" file source must resolve under one of them (symlinks excluded). Empty (default) = no restriction.",
+      "isRequired": false,
+      "isSecret": false,
+      "name": "MCP_FILE_ALLOWED_ROOTS"
+    },
+    {
+      "description": "Maximum accepted file size in bytes for any tool that ingests a file (path/base64/url source), default 1073741824 = 1 GiB. Oversized files are rejected before upload; see each file-accepting tool's error for the exact remediation.",
+      "isRequired": false,
+      "isSecret": false,
+      "name": "MCP_FILE_MAX_BYTES"
+    },
+    {
+      "description": "Comma-separated hostnames. When set, a \"url\" file source's host must be in this list, checked before any network call. Empty (default) = no restriction.",
+      "isRequired": false,
+      "isSecret": false,
+      "name": "MCP_FILE_URL_ALLOWED_HOSTS"
     },
     {
       "description": "Interface the HTTP transport binds to. Default 127.0.0.1 (localhost only). Set 0.0.0.0 to expose on all interfaces (containers do this automatically).",
@@ -55,6 +79,12 @@
       "name": "MCP_HTTP_PUBLIC"
     },
     {
+      "description": "Set to \"true\" to emit OpenTelemetry traces/metrics (requires @opentelemetry/sdk-node to be installed separately). Off by default — zero overhead for npx/stdio users.",
+      "isRequired": false,
+      "isSecret": false,
+      "name": "MCP_OTEL_ENABLED"
+    },
+    {
       "description": "Client ID this server presents to the introspection endpoint above (its resource-server credentials). Only needed alongside MCP_SVC_INTROSPECT_URL; it does not authenticate you to GoCertius.",
       "isRequired": false,
       "isSecret": false,
@@ -71,6 +101,12 @@
       "isRequired": false,
       "isSecret": false,
       "name": "MCP_SVC_INTROSPECT_URL"
+    },
+    {
+      "description": "Which transport to run: \"stdio\" for local/CLI use, \"http\" to host the server. Empty or unset means stdio. The Docker image sets http itself, so keep this variable out of any env file you pass to the container. Unknown values fail fast at startup.",
+      "isRequired": false,
+      "isSecret": false,
+      "name": "MCP_TRANSPORT"
     },
     {
       "description": "HTTP port when running in hosted (HTTP) mode; ignored in stdio mode",
